@@ -155,8 +155,6 @@ struct IOpenXrProgram {
     virtual std::shared_ptr<const IGraphicsPlugin> GetGraphicsPlugin() const = 0;
     virtual std::shared_ptr<IGraphicsPlugin> GetGraphicsPlugin() = 0;
 
-    virtual std::tuple<XrTime, std::int64_t> XrTimeNow() const = 0;
-
     virtual void Pause() = 0;
     virtual void Resume() = 0;
 
