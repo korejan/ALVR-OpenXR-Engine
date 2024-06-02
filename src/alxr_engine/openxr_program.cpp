@@ -50,6 +50,7 @@
 #include "interaction_manager.h"
 #include "eye_gaze_interaction.h"
 #include "visibility_masks.h"
+#include "xr_context.h"
 
 #ifdef XR_USE_PLATFORM_ANDROID
 #ifndef ALXR_ENGINE_DISABLE_QUIT_ACTION
@@ -977,72 +978,12 @@ struct OpenXrProgram final : IOpenXrProgram {
         return GetXrReferenceSpaceCreateInfo(appReferenceSpaceType);
     }
 
-#ifdef XR_USE_PLATFORM_WIN32
-    static inline std::int64_t ToTimeNs(const LARGE_INTEGER& ctr)
-    {
-        const std::int64_t freq = _Query_perf_frequency(); // doesn't change after system boot
-        const std::int64_t whole = (ctr.QuadPart / freq) * std::nano::den;
-        const std::int64_t part = (ctr.QuadPart % freq) * std::nano::den / freq;
-        return (whole + part);
-    }
-#else
-    static inline std::int64_t ToTimeNs(const struct timespec& ts)
-    {
-        return (ts.tv_sec * 1000000000ll) + ts.tv_nsec;
-    }
-#endif
-
-    inline std::int64_t FromXrTimeNs(const XrTime xrt) const
-    {
-#ifdef XR_USE_PLATFORM_WIN32
-        if (m_pfnConvertTimeToWin32PerformanceCounterKHR == nullptr)
-            return static_cast<std::int64_t>(xrt);
-        LARGE_INTEGER ctr;
-        if (XR_FAILED(m_pfnConvertTimeToWin32PerformanceCounterKHR(m_instance, xrt, &ctr)))
-            return static_cast<std::int64_t>(xrt);
-        return ToTimeNs(ctr);
-#else
-        if (m_pfnConvertTimeToTimespecTimeKHR == nullptr)
-            return static_cast<std::int64_t>(xrt);
-        struct timespec ts;
-        if (XR_FAILED(m_pfnConvertTimeToTimespecTimeKHR(m_instance, xrt, &ts)))
-            return static_cast<std::int64_t>(xrt);
-        return ToTimeNs(ts);
-#endif
+    inline std::uint64_t FromXrTimeNs(const XrTime xrt) const {
+        return static_cast<std::uint64_t>(ALXR::XrContext{ m_instance, m_session }.ToNanoseconds(xrt));
     }
 
-    virtual inline std::tuple<XrTime, std::int64_t> XrTimeNow() const override
-    {
-        static_assert(sizeof(XrTime) == sizeof(std::int64_t) && std::is_signed<XrTime>::value);
-#ifdef XR_USE_PLATFORM_WIN32
-        LARGE_INTEGER ctr;
-        QueryPerformanceCounter(&ctr);
-        const std::int64_t ctrNs = ToTimeNs(ctr);
-        if (m_pfnConvertWin32PerformanceCounterToTimeKHR == nullptr)
-            return { static_cast<XrTime>(ctrNs), ctrNs };
-        XrTime xrTimeNow;
-        if (XR_FAILED(m_pfnConvertWin32PerformanceCounterToTimeKHR(m_instance, &ctr, &xrTimeNow)))
-            return { static_cast<XrTime>(ctrNs), ctrNs };
-        return { xrTimeNow, ctrNs };
-#else
-        struct timespec ts;
-        if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
-            return { 0,0 };
-        const std::int64_t tsNs = ToTimeNs(ts);
-        if (IsPrePicoPUI<5,4>() || m_pfnConvertTimespecTimeToTimeKHR == nullptr) {
-            // 
-            // There are bugs in Pico's OXR runtime in firmware versions < v5.4 with either/both:
-            //      * xrLocateSpace for controller action spaces not working with any other times beyond XrFrameState::predicateDisplayTime (and zero, in a non-conforming way).
-            //      * xrConvertTimeToTimespecTimeKHR appears to return values in microseconds instead of nanoseconds and values seem to be completely off from what
-            //        XrFrameState::predicateDisplayTime values are.   
-            //
-            return { static_cast<XrTime>(tsNs), tsNs };
-        }
-        XrTime xrTimeNow;
-        if (XR_FAILED(m_pfnConvertTimespecTimeToTimeKHR(m_instance, &ts, &xrTimeNow)))
-            return { static_cast<XrTime>(tsNs), tsNs };
-        return { xrTimeNow, tsNs };
-#endif
+    inline std::tuple<XrTime, std::int64_t> XrTimeNow() const {
+        return ALXR::XrContext{ m_instance, m_session }.XrTimeNow();
     }
 
     void LogReferenceSpaces() {
@@ -1101,24 +1042,34 @@ struct OpenXrProgram final : IOpenXrProgram {
     {
         CHECK(m_instance != XR_NULL_HANDLE);
         CHECK(m_session != XR_NULL_HANDLE);
+        using ALXR::gExtFns;
 
+        gExtFns = ALXR::XrExtFunctions{};
 #ifdef XR_USE_PLATFORM_WIN32
         if (IsExtEnabled(XR_KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME))
         {
-            Log::Write(Log::Level::Info, Fmt("%s enabled.", XR_KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME));
-            CHECK_XRCMD(xrGetInstanceProcAddr(m_instance, "xrConvertTimeToWin32PerformanceCounterKHR",
-                reinterpret_cast<PFN_xrVoidFunction*>(&m_pfnConvertTimeToWin32PerformanceCounterKHR)));
-            CHECK_XRCMD(xrGetInstanceProcAddr(m_instance, "xrConvertWin32PerformanceCounterToTimeKHR",
-                reinterpret_cast<PFN_xrVoidFunction*>(&m_pfnConvertWin32PerformanceCounterToTimeKHR)));
+            Log::Write(Log::Level::Info, Fmt("%s enabled.", XR_KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME));            
+            xrGetInstanceProcAddr(m_instance, "xrConvertTimeToWin32PerformanceCounterKHR",
+                reinterpret_cast<PFN_xrVoidFunction*>(&gExtFns.pxrConvertTimeToWin32PerformanceCounterKHR));
+            xrGetInstanceProcAddr(m_instance, "xrConvertWin32PerformanceCounterToTimeKHR",
+                reinterpret_cast<PFN_xrVoidFunction*>(&gExtFns.pxrConvertWin32PerformanceCounterToTimeKHR));
         }
 #endif
         if (IsExtEnabled(XR_KHR_CONVERT_TIMESPEC_TIME_EXTENSION_NAME))
         {
             Log::Write(Log::Level::Info, Fmt("%s enabled.", XR_KHR_CONVERT_TIMESPEC_TIME_EXTENSION_NAME));
-            CHECK_XRCMD(xrGetInstanceProcAddr(m_instance, "xrConvertTimespecTimeToTimeKHR",
-                reinterpret_cast<PFN_xrVoidFunction*>(&m_pfnConvertTimespecTimeToTimeKHR)));
-            CHECK_XRCMD(xrGetInstanceProcAddr(m_instance, "xrConvertTimeToTimespecTimeKHR",
-                reinterpret_cast<PFN_xrVoidFunction*>(&m_pfnConvertTimeToTimespecTimeKHR)));
+            if (!IsPrePicoPUI<5, 4>()) {
+                // 
+                // There are bugs in Pico's OXR runtime, on firmware versions below PUI v5.4, the cause is either/both of:
+                //      * xrLocateSpace for controller action spaces not working with any other times beyond XrFrameState::predicateDisplayTime (and zero, in a non-conforming way).
+                //      * xrConvertTimeToTimespecTimeKHR appears to return values in microseconds instead of nanoseconds and values seem to be completely off from what
+                //        XrFrameState::predicateDisplayTime values are.   
+                //
+                xrGetInstanceProcAddr(m_instance, "xrConvertTimespecTimeToTimeKHR",
+                    reinterpret_cast<PFN_xrVoidFunction*>(&gExtFns.pxrConvertTimespecTimeToTimeKHR));
+            }            
+            xrGetInstanceProcAddr(m_instance, "xrConvertTimeToTimespecTimeKHR",
+                reinterpret_cast<PFN_xrVoidFunction*>(&gExtFns.pxrConvertTimeToTimespecTimeKHR));
         }
 
         if (IsExtEnabled(XR_FB_COLOR_SPACE_EXTENSION_NAME))
@@ -4088,15 +4039,6 @@ struct OpenXrProgram final : IOpenXrProgram {
         XrPassthroughLayerFB reconPassthroughLayer = XR_NULL_HANDLE;
     };
     PassthroughLayerData m_ptLayerData {};
-
-#ifdef XR_USE_PLATFORM_WIN32
-    // XR_KHR_win32_convert_performance_counter_time
-    PFN_xrConvertTimeToWin32PerformanceCounterKHR m_pfnConvertTimeToWin32PerformanceCounterKHR = nullptr;
-    PFN_xrConvertWin32PerformanceCounterToTimeKHR m_pfnConvertWin32PerformanceCounterToTimeKHR = nullptr;
-#endif
-    // XR_KHR_convert_timespec_time
-    PFN_xrConvertTimespecTimeToTimeKHR  m_pfnConvertTimespecTimeToTimeKHR = nullptr;
-    PFN_xrConvertTimeToTimespecTimeKHR  m_pfnConvertTimeToTimespecTimeKHR = nullptr;
     
     // XR_FB_color_space
     PFN_xrEnumerateColorSpacesFB m_pfnEnumerateColorSpacesFB = nullptr;
