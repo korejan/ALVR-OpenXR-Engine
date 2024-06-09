@@ -29,61 +29,6 @@ enum class AndroidThreadType : std::int32_t {
     RendererWorker = 4
 };
 
-enum class OxrRuntimeType
-{
-    SteamVR,
-    Monado,
-    WMR,
-    Oculus,
-    Pico,
-    HTCWave,
-    MagicLeap,
-    SnapdragonMonado,
-    AndroidXR,
-    VirtualDesktopXR,
-    Unknown,
-////////////////////////
-    TypeCount
-};
-
-constexpr inline const char* ToString(const OxrRuntimeType t) {
-    switch (t) {
-    case OxrRuntimeType::SteamVR:   return "SteamVR";
-    case OxrRuntimeType::Monado:    return "Monado";
-    case OxrRuntimeType::WMR:       return "Windows Mixed Reality";
-    case OxrRuntimeType::Oculus:    return "Oculus";
-    case OxrRuntimeType::Pico:      return "Pico";
-    case OxrRuntimeType::HTCWave:   return "VIVE WAVE";
-    case OxrRuntimeType::MagicLeap: return "MAGICLEAP";
-    case OxrRuntimeType::SnapdragonMonado: return "Snapdragon";
-    case OxrRuntimeType::AndroidXR: return "Android XR";
-    case OxrRuntimeType::VirtualDesktopXR: return "VirtualDesktopXR";
-    default: return "Unknown";
-    }
-}
-
-constexpr inline OxrRuntimeType FromString(const std::string_view runtimeName) {
-    for (const auto& [name,rtType] : { 
-        std::make_tuple("SteamVR", OxrRuntimeType::SteamVR),
-        { "Monado", OxrRuntimeType::Monado },
-        { "Windows Mixed Reality", OxrRuntimeType::WMR },
-        { "Oculus", OxrRuntimeType::Oculus },
-        { "Pico", OxrRuntimeType::Pico },
-        { "VIVE WAVE", OxrRuntimeType::HTCWave },
-        { "MAGICLEAP", OxrRuntimeType::MagicLeap },
-        { "Snapdragon", OxrRuntimeType::SnapdragonMonado },
-        { "Android XR", OxrRuntimeType::AndroidXR },
-        { "Moohan", OxrRuntimeType::AndroidXR },
-        { "Meta XR Simulator", OxrRuntimeType::Oculus },
-        { "VirtualDesktopXR", OxrRuntimeType::VirtualDesktopXR },
-    }) {
-        if (runtimeName.starts_with(name)) {
-            return rtType;
-        }
-    }
-    return OxrRuntimeType::Unknown;
-}
-
 struct IOpenXrProgram {
     virtual ~IOpenXrProgram() = default;
 
