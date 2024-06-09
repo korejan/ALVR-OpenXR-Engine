@@ -28,46 +28,6 @@ enum class AndroidThreadType : std::int32_t {
     RendererWorker = 4
 };
 
-enum class OxrRuntimeType
-{
-    SteamVR,
-    Monado,
-    WMR,
-    Oculus,
-    Pico,
-    HTCWave,
-    MagicLeap,
-    SnapdragonMonado,
-    AndroidXR,
-    Unknown,
-////////////////////////
-    TypeCount
-};
-
-constexpr inline std::string_view ToString(const OxrRuntimeType t) {
-    switch (t) {
-    case OxrRuntimeType::SteamVR:   return "SteamVR";
-    case OxrRuntimeType::Monado:    return "Monado";
-    case OxrRuntimeType::WMR:       return "Windows Mixed Reality";
-    case OxrRuntimeType::Oculus:    return "Oculus";
-    case OxrRuntimeType::Pico:      return "Pico";
-    case OxrRuntimeType::HTCWave:   return "VIVE WAVE";
-    case OxrRuntimeType::MagicLeap: return "MAGICLEAP";
-    case OxrRuntimeType::SnapdragonMonado: return "Snapdragon";
-    case OxrRuntimeType::AndroidXR: return "Android XR";
-    default: return "Unknown";
-    }
-}
-
-constexpr inline OxrRuntimeType FromString(const std::string_view runtimeName) {
-    for (std::size_t idx = 0; idx < std::size_t(OxrRuntimeType::TypeCount); ++idx) {
-        const std::string_view namePrefix = ToString(OxrRuntimeType(idx));
-        if (runtimeName.starts_with(namePrefix))
-            return static_cast<OxrRuntimeType>(idx);
-    }
-    return OxrRuntimeType::Unknown;
-}
-
 struct IOpenXrProgram {
     virtual ~IOpenXrProgram() = default;
 
