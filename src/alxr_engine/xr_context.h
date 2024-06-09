@@ -7,9 +7,28 @@
 
 namespace ALXR {
 
+enum class XrRuntimeType
+{
+	SteamVR,
+	Monado,
+	WMR,
+	Oculus,
+	Pico,
+	HTCWave,
+	MagicLeap,
+	SnapdragonMonado,
+    AndroidXR,
+	Unknown,
+	////////////////////////
+	TypeCount
+};
+
 struct XrContext {
 	XrInstance  instance = XR_NULL_HANDLE;
 	XrSession   session  = XR_NULL_HANDLE;
+
+	XrSystemId    GetSystemId() const;
+	XrRuntimeType GetRuntimeType() const;
 
 	std::int64_t ToNanoseconds(const XrTime xrt) const;
 	XrTime       ToXrTime(const std::int64_t timeNS) const;
@@ -28,6 +47,30 @@ struct XrContext {
 		return !(*this == rhs);
 	}
 };
+
+constexpr inline std::string_view ToString(const XrRuntimeType t) {
+	switch (t) {
+	case XrRuntimeType::SteamVR:   return "SteamVR";
+	case XrRuntimeType::Monado:    return "Monado";
+	case XrRuntimeType::WMR:       return "Windows Mixed Reality";
+	case XrRuntimeType::Oculus:    return "Oculus";
+	case XrRuntimeType::Pico:      return "Pico";
+	case XrRuntimeType::HTCWave:   return "VIVE WAVE";
+	case XrRuntimeType::MagicLeap: return "MAGICLEAP";
+	case XrRuntimeType::SnapdragonMonado: return "Snapdragon";
+    case XrRuntimeType::AndroidXR: return "Android XR";
+	default: return "Unknown";
+	}
+}
+
+constexpr inline XrRuntimeType FromString(const std::string_view runtimeName) {
+	for (std::size_t idx = 0; idx < std::size_t(XrRuntimeType::TypeCount); ++idx) {
+		const std::string_view namePrefix = ToString(XrRuntimeType(idx));
+		if (runtimeName.starts_with(namePrefix))
+			return static_cast<XrRuntimeType>(idx);
+	}
+	return XrRuntimeType::Unknown;
+}
 
 // TODO: Make a proper dispatch table for all core & ext funs...
 inline struct XrExtFunctions final {

@@ -50,6 +50,7 @@
 #include "interaction_manager.h"
 #include "eye_gaze_interaction.h"
 #include "xr_context.h"
+#include "hand_tracker.h"
 
 #ifdef XR_USE_PLATFORM_ANDROID
 #ifndef ALXR_ENGINE_DISABLE_QUIT_ACTION
@@ -58,6 +59,10 @@
 #endif
 
 //#define ALXR_ENGINE_ENABLE_VIZ_SPACES
+
+using ALXR::ToALXRQuaternionf;
+using ALXR::ToALXRVector3f;
+using ALXR::ToALXRPosef;
 
 namespace {
 #if !defined(XR_USE_PLATFORM_WIN32)
@@ -232,96 +237,6 @@ inline XrReferenceSpaceCreateInfo GetXrReferenceSpaceCreateInfo(const ALXRTracki
     return GetXrReferenceSpaceCreateInfo(ToTrackingSpaceName(ts));
 }
 
-constexpr inline ALXRVector3f ToALXRVector3f(const XrVector3f& v) {
-    return { v.x, v.y, v.z };
-}
-
-/*constexpr*/ inline ALXRVector3f ToALXRVector3f(const Eigen::Vector3f& v) {
-    return { v.x(), v.y(), v.z() };
-}
-
-constexpr inline ALXRQuaternionf ToALXRQuaternionf(const XrQuaternionf& v) {
-    return { v.x, v.y, v.z, v.w };
-}
-
-/*constexpr*/ inline ALXRQuaternionf ToALXRQuaternionf(const Eigen::Quaternionf& v) {
-    return { v.x(), v.y(), v.z(), v.w() };
-}
-
-constexpr inline ALXRPosef ToALXRPosef(const XrPosef& p) {
-    return { 
-        .orientation = ToALXRQuaternionf(p.orientation),
-        .position    = ToALXRVector3f(p.position),
-    };
-}
-
-/*constexpr*/ inline ALXRPosef ToALXRPosef(const Eigen::Affine3f& p) {
-    return {
-        .orientation = ToALXRQuaternionf(Eigen::Quaternionf{p.rotation()}),
-        .position    = ToALXRVector3f(p.translation()),
-    };
-}
-
-constexpr inline XrHandJointEXT GetJointParent(const XrHandJointEXT h)
-{
-    switch (h)
-    {
-    case XR_HAND_JOINT_PALM_EXT: return XR_HAND_JOINT_PALM_EXT;
-    case XR_HAND_JOINT_WRIST_EXT: return XR_HAND_JOINT_PALM_EXT;
-    case XR_HAND_JOINT_THUMB_METACARPAL_EXT: return XR_HAND_JOINT_WRIST_EXT;
-    case XR_HAND_JOINT_THUMB_PROXIMAL_EXT: return XR_HAND_JOINT_THUMB_METACARPAL_EXT;
-    case XR_HAND_JOINT_THUMB_DISTAL_EXT: return XR_HAND_JOINT_THUMB_PROXIMAL_EXT;
-    case XR_HAND_JOINT_THUMB_TIP_EXT: return XR_HAND_JOINT_THUMB_DISTAL_EXT;
-    case XR_HAND_JOINT_INDEX_METACARPAL_EXT: return XR_HAND_JOINT_WRIST_EXT;
-    case XR_HAND_JOINT_INDEX_PROXIMAL_EXT: return XR_HAND_JOINT_INDEX_METACARPAL_EXT;
-    case XR_HAND_JOINT_INDEX_INTERMEDIATE_EXT: return XR_HAND_JOINT_INDEX_PROXIMAL_EXT;
-    case XR_HAND_JOINT_INDEX_DISTAL_EXT: return XR_HAND_JOINT_INDEX_INTERMEDIATE_EXT;
-    case XR_HAND_JOINT_INDEX_TIP_EXT: return XR_HAND_JOINT_INDEX_DISTAL_EXT;
-    case XR_HAND_JOINT_MIDDLE_METACARPAL_EXT: return XR_HAND_JOINT_WRIST_EXT;
-    case XR_HAND_JOINT_MIDDLE_PROXIMAL_EXT: return XR_HAND_JOINT_MIDDLE_METACARPAL_EXT;
-    case XR_HAND_JOINT_MIDDLE_INTERMEDIATE_EXT: return XR_HAND_JOINT_MIDDLE_PROXIMAL_EXT;
-    case XR_HAND_JOINT_MIDDLE_DISTAL_EXT: return XR_HAND_JOINT_MIDDLE_INTERMEDIATE_EXT;
-    case XR_HAND_JOINT_MIDDLE_TIP_EXT: return XR_HAND_JOINT_MIDDLE_DISTAL_EXT;
-    case XR_HAND_JOINT_RING_METACARPAL_EXT: return XR_HAND_JOINT_WRIST_EXT;
-    case XR_HAND_JOINT_RING_PROXIMAL_EXT: return XR_HAND_JOINT_RING_METACARPAL_EXT;
-    case XR_HAND_JOINT_RING_INTERMEDIATE_EXT: return XR_HAND_JOINT_RING_PROXIMAL_EXT;
-    case XR_HAND_JOINT_RING_DISTAL_EXT: return XR_HAND_JOINT_RING_INTERMEDIATE_EXT;
-    case XR_HAND_JOINT_RING_TIP_EXT: return XR_HAND_JOINT_RING_DISTAL_EXT;
-    case XR_HAND_JOINT_LITTLE_METACARPAL_EXT: return XR_HAND_JOINT_WRIST_EXT;
-    case XR_HAND_JOINT_LITTLE_PROXIMAL_EXT: return XR_HAND_JOINT_LITTLE_METACARPAL_EXT;
-    case XR_HAND_JOINT_LITTLE_INTERMEDIATE_EXT: return XR_HAND_JOINT_LITTLE_PROXIMAL_EXT;
-    case XR_HAND_JOINT_LITTLE_DISTAL_EXT: return XR_HAND_JOINT_LITTLE_INTERMEDIATE_EXT;
-    case XR_HAND_JOINT_LITTLE_TIP_EXT: return XR_HAND_JOINT_LITTLE_DISTAL_EXT;
-    }
-    return h;
-}
-
-constexpr inline XrHandJointEXT ToXRHandJointType(const ALVR_HAND h)
-{
-    switch (h)
-    {
-    case ALVR_HAND::alvrHandBone_WristRoot: return XR_HAND_JOINT_WRIST_EXT;
-    case ALVR_HAND::alvrHandBone_Thumb0: return XR_HAND_JOINT_THUMB_METACARPAL_EXT;
-    case ALVR_HAND::alvrHandBone_Thumb1: return XR_HAND_JOINT_THUMB_PROXIMAL_EXT;
-    case ALVR_HAND::alvrHandBone_Thumb2: return XR_HAND_JOINT_THUMB_DISTAL_EXT;
-    case ALVR_HAND::alvrHandBone_Thumb3: return XR_HAND_JOINT_THUMB_TIP_EXT;
-    case ALVR_HAND::alvrHandBone_Index1: return XR_HAND_JOINT_INDEX_PROXIMAL_EXT;
-    case ALVR_HAND::alvrHandBone_Index2: return XR_HAND_JOINT_INDEX_INTERMEDIATE_EXT;
-    case ALVR_HAND::alvrHandBone_Index3: return XR_HAND_JOINT_INDEX_DISTAL_EXT;
-    case ALVR_HAND::alvrHandBone_Middle1: return XR_HAND_JOINT_MIDDLE_PROXIMAL_EXT;
-    case ALVR_HAND::alvrHandBone_Middle2: return XR_HAND_JOINT_MIDDLE_INTERMEDIATE_EXT;
-    case ALVR_HAND::alvrHandBone_Middle3: return XR_HAND_JOINT_MIDDLE_DISTAL_EXT;
-    case ALVR_HAND::alvrHandBone_Ring1: return XR_HAND_JOINT_RING_PROXIMAL_EXT;
-    case ALVR_HAND::alvrHandBone_Ring2: return XR_HAND_JOINT_RING_INTERMEDIATE_EXT;
-    case ALVR_HAND::alvrHandBone_Ring3: return XR_HAND_JOINT_RING_DISTAL_EXT;
-    case ALVR_HAND::alvrHandBone_Pinky0: return XR_HAND_JOINT_LITTLE_METACARPAL_EXT;
-    case ALVR_HAND::alvrHandBone_Pinky1: return XR_HAND_JOINT_LITTLE_PROXIMAL_EXT;
-    case ALVR_HAND::alvrHandBone_Pinky2: return XR_HAND_JOINT_LITTLE_INTERMEDIATE_EXT;
-    case ALVR_HAND::alvrHandBone_Pinky3: return XR_HAND_JOINT_LITTLE_DISTAL_EXT;
-    default: return XR_HAND_JOINT_MAX_ENUM_EXT;
-    }
-}
-
 constexpr inline auto make_local_dimming_info(const bool enabled) {
     return XrLocalDimmingFrameEndInfoMETA{
         .type = XR_TYPE_LOCAL_DIMMING_FRAME_END_INFO_META,
@@ -429,17 +344,7 @@ struct OpenXrProgram final : IOpenXrProgram {
             m_ptLayerData.passthroughHTC = XR_NULL_HANDLE;
         }
 
-        if (m_pfnDestroyHandTrackerEXT != nullptr)
-        {
-            Log::Write(Log::Level::Verbose, "Destroying HandTrackers");
-            assert(m_pfnCreateHandTrackerEXT != nullptr);
-            for (auto& handTracker : m_input.handTrackers) {
-                if (handTracker.tracker != XR_NULL_HANDLE) {
-                    m_pfnDestroyHandTrackerEXT(handTracker.tracker);
-                    handTracker.tracker = XR_NULL_HANDLE;
-                }
-            }
-        }
+        m_handTracker.reset();
 
         if (m_eyeTrackerANDROID != XR_NULL_HANDLE)
         {
@@ -664,14 +569,14 @@ struct OpenXrProgram final : IOpenXrProgram {
         }
     }
 
-    inline bool IsRuntime(const OxrRuntimeType rtType) const {
+    inline bool IsRuntime(const ALXR::XrRuntimeType rtType) const {
         return rtType == m_runtimeType;
     }
 
     template < const std::size_t major, const std::size_t minor >
     inline bool IsPrePicoPUI() const {
 #ifdef XR_USE_OXR_PICO
-        assert(IsRuntime(OxrRuntimeType::Pico));
+        assert(IsRuntime(ALXR::XrRuntimeType::Pico));
         static constexpr const FirmwareVersion PuiVersion{ major,minor,0 };
         return m_options->firmwareVersion < PuiVersion;
 #else
@@ -691,7 +596,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         Log::Write(Log::Level::Info, Fmt("Instance RuntimeName=%s RuntimeVersion=%s", instanceProperties.runtimeName,
             GetXrVersionString(instanceProperties.runtimeVersion).c_str()));
 
-        m_runtimeType = FromString(instanceProperties.runtimeName);
+        m_runtimeType = ALXR::FromString(instanceProperties.runtimeName);
 
         const bool enableSRGBLinearization = [this]() {
             if (IsPrePicoPUI<5,4>())
@@ -705,7 +610,7 @@ struct OpenXrProgram final : IOpenXrProgram {
             m_graphicsPlugin->SetBlendModeParams(0.62f);
         }
 #endif
-        m_graphicsPlugin->SetCmdBufferWaitNextFrame(!IsRuntime(OxrRuntimeType::MagicLeap));
+        m_graphicsPlugin->SetCmdBufferWaitNextFrame(!IsRuntime(ALXR::XrRuntimeType::MagicLeap));
     }
 
     void CreateInstanceInternal() {
@@ -991,7 +896,7 @@ struct OpenXrProgram final : IOpenXrProgram {
 
             if (m_options && m_options->DisableSuggestedBindings)
                 return false;
-            if (IsRuntime(OxrRuntimeType::HTCWave)) {
+            if (IsRuntime(ALXR::XrRuntimeType::HTCWave)) {
                 if (profile.IsCore())
                     return false;
                 constexpr const std::array<const std::string_view, 2> HTCFilterList{
@@ -1687,6 +1592,10 @@ struct OpenXrProgram final : IOpenXrProgram {
         return true;
     }
 
+    bool IsHandTrackingEnabled() const override {
+        return m_handTracker && m_handTracker->IsEnabled();
+    }
+
     bool InitializeHandTrackers()
     {
         assert(m_instance != XR_NULL_HANDLE);
@@ -1698,79 +1607,11 @@ struct OpenXrProgram final : IOpenXrProgram {
             return false;
         }
         
-        // Inspect hand tracking system properties
-        XrSystemHandTrackingPropertiesEXT handTrackingSystemProperties{ 
-            .type = XR_TYPE_SYSTEM_HAND_TRACKING_PROPERTIES_EXT,
-            .next = nullptr,
-            .supportsHandTracking = XR_FALSE
-        };
-        XrSystemProperties systemProperties{ .type=XR_TYPE_SYSTEM_PROPERTIES, .next = &handTrackingSystemProperties };
-        if (XR_FAILED(xrGetSystemProperties(m_instance, m_systemId, &systemProperties)) ||
-            handTrackingSystemProperties.supportsHandTracking == XR_FALSE) {
-            Log::Write(Log::Level::Warning, Fmt("%s is not enabled/supported.", XR_EXT_HAND_TRACKING_EXTENSION_NAME));
-            // The system does not support hand tracking
-            return false;
-        }
-
-        // Get function pointer for xrCreateHandTrackerEXT
-        if (XR_FAILED(xrGetInstanceProcAddr(m_instance, "xrCreateHandTrackerEXT",
-            reinterpret_cast<PFN_xrVoidFunction*>(&m_pfnCreateHandTrackerEXT)))) {
-            m_pfnCreateHandTrackerEXT = nullptr;
-        }
-
-        // Get function pointer for xrLocateHandJointsEXT
-        if (XR_FAILED(xrGetInstanceProcAddr(m_instance, "xrLocateHandJointsEXT",
-            reinterpret_cast<PFN_xrVoidFunction*>(&m_pfnLocateHandJointsEXT)))) {
-            m_pfnLocateHandJointsEXT = nullptr;
-        }
-
-        // Get function pointer for xrLocateHandJointsEXT
-        if (XR_FAILED(xrGetInstanceProcAddr(m_instance, "xrDestroyHandTrackerEXT",
-            reinterpret_cast<PFN_xrVoidFunction*>(&m_pfnDestroyHandTrackerEXT)))) {
-            m_pfnDestroyHandTrackerEXT = nullptr;
-        }
-
-        if (m_pfnCreateHandTrackerEXT == nullptr ||
-            m_pfnLocateHandJointsEXT == nullptr ||
-            m_pfnDestroyHandTrackerEXT == nullptr)
-        {
-            Log::Write(Log::Level::Warning, Fmt("%s is not enabled/supported.", XR_EXT_HAND_TRACKING_EXTENSION_NAME));
-            return false;
-        }
-        Log::Write(Log::Level::Info, Fmt("%s is enabled.", XR_EXT_HAND_TRACKING_EXTENSION_NAME));
-
-        // Create a hand tracker for left hand that tracks default set of hand joints.
-        const auto createHandTracker = [&](auto& handTracker, const XrHandEXT hand)
-        {
-            const XrHandTrackerCreateInfoEXT createInfo{
-                .type = XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT,
-                .next = nullptr,
-                .hand = hand,
-                .handJointSet = XR_HAND_JOINT_SET_DEFAULT_EXT
-            };
-            if (XR_FAILED(m_pfnCreateHandTrackerEXT(m_session, &createInfo, &handTracker.tracker))) {
-                handTracker.tracker = XR_NULL_HANDLE;
-                Log::Write(Log::Level::Error, Fmt("Failed to create hand tracker for %s hand.", hand == XR_HAND_LEFT_EXT ? "left" : "right"));
-            }
-        };
-        createHandTracker(m_input.handTrackers[0], XR_HAND_LEFT_EXT);
-        createHandTracker(m_input.handTrackers[1], XR_HAND_RIGHT_EXT);
-
-        auto& leftHandBaseOrientation = m_input.handTrackers[0].baseOrientation;
-        auto& rightHandBaseOrientation = m_input.handTrackers[1].baseOrientation;
-        auto& yRot = rightHandBaseOrientation;
-        yRot = Eigen::AngleAxisf(ALXR::ToRadians(-90.0f), Eigen::Vector3f(0, 1, 0));
-        const Eigen::Quaternionf zRot(Eigen::AngleAxisf(ALXR::ToRadians(180.0f), Eigen::Vector3f(0,0,1)));
-        leftHandBaseOrientation = yRot * zRot;
-        return true;
-    }
-
-    bool IsHandTrackingEnabled() const override {
-        for (const auto& handTracker : m_input.handTrackers) {
-            if (handTracker.tracker != XR_NULL_HANDLE)
-                return true;
-        }
-        return false;
+        m_handTracker = std::make_unique<ALXR::XrHandTracker>(ALXR::XrContext{
+            .instance = m_instance,
+            .session  = m_session
+        });
+        return IsHandTrackingEnabled();
     }
 
     bool InitializeFBPassthroughAPI()
@@ -2241,7 +2082,7 @@ struct OpenXrProgram final : IOpenXrProgram {
 
 #ifdef XR_USE_PLATFORM_WIN32
         // Meta-link (not standalone) runtime outputs visiblity mask upside down,
-        if (IsRuntime(OxrRuntimeType::Oculus) && mesh.vertices.size() > 0) {
+        if (IsRuntime(ALXR::XrRuntimeType::Oculus) && mesh.vertices.size() > 0) {
             const auto [minY, maxY] =
                 std::minmax_element(mesh.vertices.begin(), mesh.vertices.end(), [](const auto& v1, const auto& v2) {
                     return v1.y < v2.y;
@@ -2651,136 +2492,15 @@ struct OpenXrProgram final : IOpenXrProgram {
         return m_options->SimulateHeadless || (m_options->HeadlessSession && IsExtEnabled(XR_MND_HEADLESS_EXTENSION_NAME));
     }
 
-    template < typename ControllerInfoArray >
-    void PollHandTrackers(const XrTime time, ControllerInfoArray& controllerInfo)
-    {
-        if (m_pfnLocateHandJointsEXT == nullptr || time == 0)
-            return;
-
-        const bool isHandOnControllerPose = //IsRuntime(OxrRuntimeType::HTCWave) ||
-                                            IsRuntime(OxrRuntimeType::SteamVR) ||
-                                            IsRuntime(OxrRuntimeType::WMR) ||
-                                            IsRuntime(OxrRuntimeType::MagicLeap);
-        std::array<Eigen::Affine3f, XR_HAND_JOINT_COUNT_EXT> oculusOrientedJointPoses;
-        for (const auto hand : { Side::LEFT,Side::RIGHT })
-        {
-            auto& controller = controllerInfo[hand];
-            // TODO: v17/18 server does not allow for both controller & hand tracking data, this needs changing,
-            //       we don't want to override a controller device pose with potentially an emulated pose for
-            //       runtimes such as WMR & SteamVR.
-            if (isHandOnControllerPose && controller.enabled)
-                continue;
-
-            auto& handTracker = m_input.handTrackers[hand];
-            if (handTracker.tracker == XR_NULL_HANDLE)
-                continue;
-
-            //XrHandJointVelocitiesEXT velocities {
-            //    .type = XR_TYPE_HAND_JOINT_VELOCITIES_EXT,
-            //    .next = nullptr,
-            //    .jointCount = XR_HAND_JOINT_COUNT_EXT,
-            //    .jointVelocities = handTracker.jointVelocities.data(),
-            //};
-            XrHandJointLocationsEXT locations {
-                .type = XR_TYPE_HAND_JOINT_LOCATIONS_EXT,
-                .next = nullptr, //&velocities,
-                .isActive = XR_FALSE,
-                .jointCount = XR_HAND_JOINT_COUNT_EXT,
-                .jointLocations = handTracker.jointLocations.data(),
-            };
-            const XrHandJointsLocateInfoEXT locateInfo{
-                .type = XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT,
-                .next = nullptr,
-                .baseSpace = m_appSpace,
-                .time = time
-            };
-            if (XR_FAILED(m_pfnLocateHandJointsEXT(handTracker.tracker, &locateInfo, &locations)) ||
-                locations.isActive == XR_FALSE)
-                continue;
-
-            const auto& jointLocations = handTracker.jointLocations;
-            const auto& handBaseOrientation = handTracker.baseOrientation;
-            for (size_t jointIdx = 0; jointIdx < XR_HAND_JOINT_COUNT_EXT; ++jointIdx)
-            {
-                const auto& jointLoc = jointLocations[jointIdx];
-                Eigen::Affine3f& jointMatFixed = oculusOrientedJointPoses[jointIdx];
-                jointMatFixed.setIdentity();
-                if (!Math::Pose::IsPoseValid(jointLoc)) {
-                    continue;
-                }
-                jointMatFixed = ALXR::ToAffine3f(jointLoc.pose) * handBaseOrientation;
-            }
-            
-            for (size_t boneIndex = 0; boneIndex < ALVR_HAND::alvrHandBone_MaxSkinnable; ++boneIndex)
-            {
-                auto& boneRot = controller.boneRotations[boneIndex];
-                auto& bonePos = controller.bonePositionsBase[boneIndex];
-                boneRot = { 0,0,0,1 };
-                bonePos = { 0,0,0 };
-                
-                const auto xrJoint = ToXRHandJointType(static_cast<const ALVR_HAND>(boneIndex));
-                if (xrJoint == XR_HAND_JOINT_MAX_ENUM_EXT)
-                    continue;
-
-                const auto xrJointParent = GetJointParent(xrJoint);
-                const Eigen::Affine3f& jointParentWorld = oculusOrientedJointPoses[xrJointParent];
-                const Eigen::Affine3f& JointWorld       = oculusOrientedJointPoses[xrJoint];
-
-                const Eigen::Affine3f jointLocal = jointParentWorld.inverse() * JointWorld;
-
-                const Eigen::Quaternionf localizedRot(jointLocal.rotation());
-                boneRot = ToALXRQuaternionf(localizedRot);
-                bonePos = ToALXRVector3f(jointLocal.translation());
-            }
-
-            controller.enabled = true;
-            controller.isHand = true;
-
-            const Eigen::Affine3f& palmMatP = oculusOrientedJointPoses[XR_HAND_JOINT_PALM_EXT];
-            controller.boneRootPose    = ToALXRPosef(palmMatP);
-            controller.linearVelocity  = { 0,0,0 };
-            controller.angularVelocity = { 0,0,0 };
+    void PollHandTrackers(const XrTime time, ALXRTrackingInfo::Controller (&controllerInfo)[2]) {
+        if (m_handTracker) {
+            m_handTracker->GetJointLocations(time, m_appSpace, controllerInfo);
         }
     }
 
     void PollHandTracking(const XrTime& time, ALXRHandTracking& handTrackingData) {
-
-        static_assert(sizeof(ALXRHandJointLocation) == sizeof(XrHandJointLocationEXT));
-        static_assert(sizeof(ALXRHandJointVelocity) == sizeof(XrHandJointVelocityEXT));
-        static_assert(MaxHandJointCount == XR_HAND_JOINT_COUNT_EXT);
-
-        for (const auto hand : { Side::LEFT,Side::RIGHT })
-        {
-            auto& handData = handTrackingData.hands[hand];
-            handData.isActive = false;
-            if (time == 0 || m_pfnLocateHandJointsEXT == nullptr)
-                continue;
-
-            auto& handTracker = m_input.handTrackers[hand];
-            if (handTracker.tracker == XR_NULL_HANDLE)
-                continue;
-
-            XrHandJointVelocitiesEXT velocities{
-                .type = XR_TYPE_HAND_JOINT_VELOCITIES_EXT,
-                .next = nullptr,
-                .jointCount = XR_HAND_JOINT_COUNT_EXT,
-                .jointVelocities = reinterpret_cast<XrHandJointVelocityEXT*>(&handData.jointVelocities[0]),
-            };
-            XrHandJointLocationsEXT locations{
-                .type = XR_TYPE_HAND_JOINT_LOCATIONS_EXT,
-                .next = &velocities,
-                .isActive = XR_FALSE,
-                .jointCount = XR_HAND_JOINT_COUNT_EXT,
-                .jointLocations = reinterpret_cast<XrHandJointLocationEXT*>(&handData.jointLocations[0]),
-            };
-            const XrHandJointsLocateInfoEXT locateInfo{
-                .type = XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT,
-                .next = nullptr,
-                .baseSpace = m_appSpace,
-                .time = time
-            };
-            handData.isActive = XR_SUCCEEDED(m_pfnLocateHandJointsEXT(handTracker.tracker, &locateInfo, &locations)) &&
-                locations.isActive == XR_TRUE;
+        if (m_handTracker) {
+            m_handTracker->GetJointLocations(time, m_appSpace, handTrackingData);
         }
     }
 
@@ -2817,10 +2537,11 @@ struct OpenXrProgram final : IOpenXrProgram {
 
     inline bool UseNetworkPredicatedDisplayTime() const
     {
-        return !IsRuntime(OxrRuntimeType::SteamVR) &&
-               !IsRuntime(OxrRuntimeType::Monado) &&
-               !IsRuntime(OxrRuntimeType::SnapdragonMonado) &&
-               !IsRuntime(OxrRuntimeType::AndroidXR);
+        using ALXR::XrRuntimeType;
+        return !IsRuntime(XrRuntimeType::SteamVR) &&
+               !IsRuntime(XrRuntimeType::Monado) &&
+               !IsRuntime(XrRuntimeType::SnapdragonMonado) &&
+               !IsRuntime(XrRuntimeType::AndroidXR);
     }
 
     inline XrCompositionLayerPassthroughFB MakeCompositionLayerPassthroughFB() const {
@@ -3021,38 +2742,26 @@ struct OpenXrProgram final : IOpenXrProgram {
     using VizCubeList = std::vector<Cube>;
     VizCubeList GetVisualizedHandCubes(const XrTime predictedDisplayTime) /*const*/ {
 
-        if (m_pfnLocateHandJointsEXT == nullptr || predictedDisplayTime == 0)
+        if (predictedDisplayTime == 0 || !IsHandTrackingEnabled())
             return {};
+        
+        ALXRHandTracking handTrackingData;
+        PollHandTracking(predictedDisplayTime, handTrackingData);
 
         VizCubeList handCubes;
         handCubes.reserve(XR_HAND_JOINT_COUNT_EXT * 2);
 
         for (const auto hand : { Side::LEFT,Side::RIGHT }) {
-
-            auto& handTracker = m_input.handTrackers[hand];
-            XrHandJointLocationsEXT locations{
-                .type = XR_TYPE_HAND_JOINT_LOCATIONS_EXT,
-                .next = nullptr, //&velocities,
-                .isActive = XR_FALSE,
-                .jointCount = XR_HAND_JOINT_COUNT_EXT,
-                .jointLocations = handTracker.jointLocations.data(),
-            };
-            const XrHandJointsLocateInfoEXT locateInfo{
-                .type = XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT,
-                .next = nullptr,
-                .baseSpace = m_appSpace,
-                .time = predictedDisplayTime
-            };
-            if (XR_FAILED(m_pfnLocateHandJointsEXT(handTracker.tracker, &locateInfo, &locations)) ||
-                locations.isActive == XR_FALSE)
+            auto& jointData = handTrackingData.hands[hand];
+            if (!jointData.isActive)
                 continue;
-
-            const auto& jointLocations = handTracker.jointLocations;
+            const auto& jointLocations = jointData.jointLocations;
             for (size_t jointIdx = 0; jointIdx < XR_HAND_JOINT_COUNT_EXT; ++jointIdx)
             {
                 const auto& jointLoc = jointLocations[jointIdx];
-                const auto& newPose = Math::Pose::IsPoseValid(jointLoc) ?
-                    jointLoc.pose : ALXR::IdentityPose;
+                static_assert(sizeof(ALXRPosef) == sizeof(XrPosef));
+                const auto& newPose = Math::Pose::IsPoseValid(jointLoc.locationFlags) ?
+                    reinterpret_cast<const XrPosef&>(jointLoc.pose) : ALXR::IdentityPose;
                 const auto scale = ALXR::GetHandJointScale(static_cast<XrHandJointEXT>(jointIdx));
                 handCubes.push_back(Cube{ newPose, scale });
             }
@@ -3961,27 +3670,22 @@ struct OpenXrProgram final : IOpenXrProgram {
     // Application's current lifecycle state according to the runtime
     XrSessionState m_sessionState{XR_SESSION_STATE_UNKNOWN};
     std::atomic<bool> m_sessionRunning{false};
-    OxrRuntimeType m_runtimeType { OxrRuntimeType::Unknown };
+    ALXR::XrRuntimeType m_runtimeType { ALXR::XrRuntimeType::Unknown };
 
     XrEventDataBuffer m_eventDataBuffer{
         .type = XR_TYPE_EVENT_DATA_BUFFER,
         .next = nullptr
     };
     ALXR::ALXRPaths  m_alxrPaths;
+
+    using XrHandTrackerPtr = std::unique_ptr<ALXR::XrHandTracker>;
+    XrHandTrackerPtr m_handTracker{ nullptr };
     
     using InteractionManagerPtr = std::unique_ptr<ALXR::InteractionManager>;
     InteractionManagerPtr m_interactionManager{ nullptr };    
     
     struct InputState
     {
-        struct HandTrackerData
-        {
-            std::array<XrHandJointLocationEXT, XR_HAND_JOINT_COUNT_EXT> jointLocations;
-            //std::array<XrHandJointVelocityEXT, XR_HAND_JOINT_COUNT_EXT> jointVelocities;
-            Eigen::Quaternionf baseOrientation;
-            XrHandTrackerEXT tracker{ XR_NULL_HANDLE };
-        };
-        std::array<HandTrackerData, Side::COUNT> handTrackers;
         std::array<ALXRTrackingInfo::Controller, Side::COUNT> controllerInfo{};
     };
     InputState m_input{};
@@ -3998,11 +3702,6 @@ struct OpenXrProgram final : IOpenXrProgram {
     // XR_FB_color_space
     PFN_xrEnumerateColorSpacesFB m_pfnEnumerateColorSpacesFB = nullptr;
     PFN_xrSetColorSpaceFB        m_pfnSetColorSpaceFB = nullptr;
-
-    // XR_EXT_hand_tracking fun pointers.
-    PFN_xrCreateHandTrackerEXT  m_pfnCreateHandTrackerEXT = nullptr;
-    PFN_xrLocateHandJointsEXT   m_pfnLocateHandJointsEXT = nullptr;
-    PFN_xrDestroyHandTrackerEXT m_pfnDestroyHandTrackerEXT = nullptr;
 
     // XR_FB_display_refresh_rate fun pointers.
     PFN_xrEnumerateDisplayRefreshRatesFB m_pfnEnumerateDisplayRefreshRatesFB = nullptr;
