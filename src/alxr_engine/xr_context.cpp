@@ -95,4 +95,34 @@ std::tuple<XrTime, std::int64_t> XrContext::XrTimeNow() const {
     }
     return { xrTimeNow, ToTimeNs(ts) };
 }
+
+XrSystemId XrContext::GetSystemId() const {
+    if (!IsValid())
+		return XR_NULL_SYSTEM_ID;
+    for (const auto formFactor : { XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY , XR_FORM_FACTOR_HANDHELD_DISPLAY }) {
+        XrSystemId systemId = XR_NULL_SYSTEM_ID;
+        const XrSystemGetInfo systemInfo = {
+            .type = XR_TYPE_SYSTEM_GET_INFO,
+            .next = nullptr,
+            .formFactor = formFactor,
+        };
+        if (XR_SUCCEEDED(xrGetSystem(instance, &systemInfo, &systemId)) && systemId != XR_NULL_SYSTEM_ID) {
+            return systemId;
+        }
+    }
+	return XR_NULL_SYSTEM_ID;
+}
+
+XrRuntimeType XrContext::GetRuntimeType() const {
+    if (!IsValid())
+        return XrRuntimeType::Unknown;
+	XrInstanceProperties instanceProperties = {
+		.type = XR_TYPE_INSTANCE_PROPERTIES,
+		.next = nullptr,
+	};
+    XrRuntimeType runtimeType = XrRuntimeType::Unknown;
+	if (XR_FAILED(xrGetInstanceProperties(instance, &instanceProperties)))
+		return XrRuntimeType::Unknown;
+	return FromString(instanceProperties.runtimeName);
+}
 }
