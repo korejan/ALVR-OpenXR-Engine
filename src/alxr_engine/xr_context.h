@@ -4,12 +4,33 @@
 #include "pch.h"
 #include <optional>
 #include <tuple>
+#include <string_view>
 
 namespace ALXR {
+
+enum class XrRuntimeType
+{
+	SteamVR,
+	Monado,
+	WMR,
+	Oculus,
+	Pico,
+	HTCWave,
+	MagicLeap,
+	SnapdragonMonado,
+    AndroidXR,
+    VirtualDesktopXR,
+	Unknown,
+	////////////////////////
+	TypeCount
+};
 
 struct XrContext {
 	XrInstance  instance = XR_NULL_HANDLE;
 	XrSession   session  = XR_NULL_HANDLE;
+
+	XrSystemId    GetSystemId() const;
+	XrRuntimeType GetRuntimeType() const;
 
 	std::int64_t ToNanoseconds(const XrTime xrt) const;
 	XrTime       ToXrTime(const std::int64_t timeNS) const;
@@ -28,6 +49,43 @@ struct XrContext {
 		return !(*this == rhs);
 	}
 };
+
+constexpr inline const char* ToString(const XrRuntimeType t) {
+	switch (t) {
+	case XrRuntimeType::SteamVR:   return "SteamVR";
+	case XrRuntimeType::Monado:    return "Monado";
+	case XrRuntimeType::WMR:       return "Windows Mixed Reality";
+	case XrRuntimeType::Oculus:    return "Oculus";
+	case XrRuntimeType::Pico:      return "Pico";
+	case XrRuntimeType::HTCWave:   return "VIVE WAVE";
+	case XrRuntimeType::MagicLeap: return "MAGICLEAP";
+	case XrRuntimeType::SnapdragonMonado: return "Snapdragon";
+    case XrRuntimeType::AndroidXR: return "Android XR";
+    case XrRuntimeType::VirtualDesktopXR: return "VirtualDesktopXR";
+	default: return "Unknown";
+	}
+}
+
+constexpr inline XrRuntimeType FromString(const std::string_view runtimeName) {
+    for (const auto& [name,rtType] : { 
+        std::make_tuple("SteamVR", XrRuntimeType::SteamVR),
+        { "Monado", XrRuntimeType::Monado },
+        { "Windows Mixed Reality", XrRuntimeType::WMR },
+        { "Oculus", XrRuntimeType::Oculus },
+        { "Pico", XrRuntimeType::Pico },
+        { "VIVE WAVE", XrRuntimeType::HTCWave },
+        { "MAGICLEAP", XrRuntimeType::MagicLeap },
+        { "Snapdragon", XrRuntimeType::SnapdragonMonado },
+        { "Android XR", XrRuntimeType::AndroidXR },
+        { "Moohan", XrRuntimeType::AndroidXR },
+        { "VirtualDesktopXR", XrRuntimeType::VirtualDesktopXR },
+    }) {
+        if (runtimeName.starts_with(name)) {
+            return rtType;
+        }
+    }
+    return XrRuntimeType::Unknown;
+}
 
 // TODO: Make a proper dispatch table for all core & ext funs...
 inline struct XrExtFunctions final {
