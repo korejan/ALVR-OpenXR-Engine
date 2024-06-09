@@ -125,6 +125,20 @@ constexpr inline ALXRPosef ToALXRPosef(const XrPosef& p) {
     };
 }
 
+constexpr inline ALXRPosef ToALXRPosef(const XrPosef& p) {
+    return {
+        .orientation = ToALXRQuaternionf(p.orientation),
+        .position = ToALXRVector3f(p.position),
+    };
+}
+
+/*constexpr*/ inline ALXRPosef ToALXRPosef(const Eigen::Affine3f& p) {
+    return {
+        .orientation = ToALXRQuaternionf(Eigen::Quaternionf{p.rotation()}),
+        .position = ToALXRVector3f(p.translation()),
+    };
+}
+
 inline Eigen::Affine3f CreateTRS(const XrPosef& pose, const XrVector3f& scale) {
     Eigen::Affine3f pf = Eigen::Affine3f::Identity();
     return pf.fromPositionOrientationScale(
