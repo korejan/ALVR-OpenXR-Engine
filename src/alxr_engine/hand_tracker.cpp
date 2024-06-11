@@ -71,11 +71,27 @@ constexpr inline XrHandJointEXT ToXRHandJointType(const ALVR_HAND h) {
     default: return XR_HAND_JOINT_MAX_ENUM_EXT;
     }
 }
+
+using PointSet = Eigen::Matrix<float, 3, 4>;
+
+inline Eigen::Array4<bool> SphereSphereX4Test
+(
+    const Eigen::Vector3f& sphereCenter, float sphereRadius,
+    const PointSet& testSpheres, const Eigen::Array4f& testSphereRadii
+)
+{
+    const Eigen::Vector4f squaredLengths  = (testSpheres.colwise() - sphereCenter).colwise().squaredNorm();
+    const Eigen::Vector4f squaredSumRadii = (testSphereRadii + sphereRadius).square();
+    return squaredSumRadii.cwiseGreater(squaredLengths);
+}
+
 }
 
 XrHandTracker::XrHandTracker(const XrContext& ctx)
 : m_ctx{ ctx }
-, m_runtimeType{ ctx.GetRuntimeType() } {
+, m_runtimeType{ ctx.GetRuntimeType() }
+, m_isFBHandTrackingAimSupported{ ctx.IsExtEnabled(XR_FB_HAND_TRACKING_AIM_EXTENSION_NAME) }
+{
     
     if (!IsSupported()) {
         Log::Write(Log::Level::Warning, Fmt("%s is not enabled/supported.", XR_EXT_HAND_TRACKING_EXTENSION_NAME));
@@ -178,7 +194,12 @@ bool XrHandTracker::LoadExtFunctions() {
     return true;
 }
 
-bool XrHandTracker::GetJointLocations(const XrTime& time, const XrSpace space, ALXRHandTracking& handTrackingData) const {
+bool XrHandTracker::GetJointLocations(
+    const XrTime& time,
+    const XrSpace space,
+    ALXRHandTracking& handTrackingData,
+    XrHandTracker::AimStatusList* aimStatuses /*= nullptr*/
+) const {
     static_assert(sizeof(ALXRHandJointLocation) == sizeof(XrHandJointLocationEXT));
     static_assert(sizeof(ALXRHandJointVelocity) == sizeof(XrHandJointVelocityEXT));
     static_assert(MaxHandJointCount == XR_HAND_JOINT_COUNT_EXT);
@@ -193,20 +214,25 @@ bool XrHandTracker::GetJointLocations(const XrTime& time, const XrSpace space, A
         if (handTracker.tracker == XR_NULL_HANDLE)
             continue;
 
-        XrHandJointVelocitiesEXT velocities{
-            .type = XR_TYPE_HAND_JOINT_VELOCITIES_EXT,
+        XrHandTrackingAimStateFB aimState = {
+            .type = XR_TYPE_HAND_TRACKING_AIM_STATE_FB,
             .next = nullptr,
+            .status = 0,
+        };
+        XrHandJointVelocitiesEXT velocities = {
+            .type = XR_TYPE_HAND_JOINT_VELOCITIES_EXT,
+            .next = (m_isFBHandTrackingAimSupported && aimStatuses) ? &aimState : nullptr,
             .jointCount = XR_HAND_JOINT_COUNT_EXT,
             .jointVelocities = reinterpret_cast<XrHandJointVelocityEXT*>(&handData.jointVelocities[0]),
         };
-        XrHandJointLocationsEXT locations{
+        XrHandJointLocationsEXT locations = {
             .type = XR_TYPE_HAND_JOINT_LOCATIONS_EXT,
             .next = &velocities,
             .isActive = XR_FALSE,
             .jointCount = XR_HAND_JOINT_COUNT_EXT,
             .jointLocations = reinterpret_cast<XrHandJointLocationEXT*>(&handData.jointLocations[0]),
         };
-        const XrHandJointsLocateInfoEXT locateInfo{
+        const XrHandJointsLocateInfoEXT locateInfo = {
             .type = XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT,
             .next = nullptr,
             .baseSpace = space,
@@ -214,6 +240,9 @@ bool XrHandTracker::GetJointLocations(const XrTime& time, const XrSpace space, A
         };
         handData.isActive = XR_SUCCEEDED(xrLocateHandJointsEXT(handTracker.tracker, &locateInfo, &locations)) &&
             locations.isActive == XR_TRUE;
+        if (aimStatuses) {
+            (*aimStatuses)[hand] = GetAimStatus(locations);
+        }
     }
     return true;
 }
@@ -240,15 +269,20 @@ bool XrHandTracker::GetJointLocations(const XrTime& time, const XrSpace space, A
         if (handTracker.tracker == XR_NULL_HANDLE)
             continue;
 
+        //XrHandTrackingAimStateFB aimState = {
+        //    .type = XR_TYPE_HAND_TRACKING_AIM_STATE_FB,
+        //    .next = nullptr,
+        //    .status = 0,
+        //};
         //XrHandJointVelocitiesEXT velocities {
         //    .type = XR_TYPE_HAND_JOINT_VELOCITIES_EXT,
-        //    .next = nullptr,
+        //    .next = m_isFBHandTrackingAimSupported ? &aimState : nullptr,
         //    .jointCount = XR_HAND_JOINT_COUNT_EXT,
         //    .jointVelocities = handTracker.jointVelocities.data(),
         //};
         XrHandJointLocationsEXT locations{
             .type = XR_TYPE_HAND_JOINT_LOCATIONS_EXT,
-            .next = nullptr, //&velocities,
+            .next = nullptr, // m_isFBHandTrackingAimSupported ? &aimState : nullptr,
             .isActive = XR_FALSE,
             .jointCount = XR_HAND_JOINT_COUNT_EXT,
             .jointLocations = handTracker.jointLocations.data(),
@@ -307,6 +341,61 @@ bool XrHandTracker::GetJointLocations(const XrTime& time, const XrSpace space, A
         controller.angularVelocity = { 0,0,0 };
     }
     return true;
+}
+
+XrHandTrackingAimFlagsFB XrHandTracker::GetAimStatus(const XrHandJointLocationsEXT& jointLocationsEXT) const {
+
+    if (m_isFBHandTrackingAimSupported) {
+        for (auto next = reinterpret_cast<const XrBaseInStructure*>(jointLocationsEXT.next);
+             next != nullptr; next = next->next) {
+            if (next->type == XR_TYPE_HAND_TRACKING_AIM_STATE_FB) {
+                return reinterpret_cast<const XrHandTrackingAimStateFB*>(next)->status;
+            }
+        }
+	}
+
+    constexpr const auto IsPosValid = [](const XrHandJointLocationEXT& joint) {
+		return (joint.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0;
+	};
+
+    const auto& jointLocations = jointLocationsEXT.jointLocations;
+    const auto& thumbJoint = jointLocations[XR_HAND_JOINT_THUMB_TIP_EXT];
+    if (!IsPosValid(thumbJoint))
+		return 0;
+
+    Eigen::Array4f tipRadii = Eigen::Array4f::Zero();
+    PointSet tipPositions = PointSet::Zero();
+
+    static constexpr const std::array<const XrHandJointEXT, 4> JoinTipTypes = {
+        XR_HAND_JOINT_INDEX_TIP_EXT,
+        XR_HAND_JOINT_MIDDLE_TIP_EXT,
+        XR_HAND_JOINT_RING_TIP_EXT,
+        XR_HAND_JOINT_LITTLE_TIP_EXT,
+    };
+    for (std::size_t idx = 0; idx < JoinTipTypes.size(); ++idx) {
+        const auto& tipJoint = jointLocations[JoinTipTypes[idx]];
+        if (IsPosValid(tipJoint)) {
+            tipPositions.col(idx) = ALXR::ToVector3f(tipJoint.pose.position);
+            tipRadii(idx) = tipJoint.radius;
+        }
+    }
+
+    const Eigen::Array4<bool> results = SphereSphereX4Test(
+        ALXR::ToVector3f(thumbJoint.pose.position), thumbJoint.radius,
+        tipPositions, tipRadii
+    );
+
+    static constexpr const std::array<const XrHandTrackingAimFlagsFB, 4> AimFlags = {
+        XR_HAND_TRACKING_AIM_INDEX_PINCHING_BIT_FB,
+        XR_HAND_TRACKING_AIM_MIDDLE_PINCHING_BIT_FB,
+        XR_HAND_TRACKING_AIM_RING_PINCHING_BIT_FB,
+        XR_HAND_TRACKING_AIM_LITTLE_PINCHING_BIT_FB,
+    };
+    XrHandTrackingAimFlagsFB stateFlags = 0;
+    for (std::size_t idx = 0; idx < JoinTipTypes.size(); ++idx) {
+        stateFlags |= results(idx) ? AimFlags[idx] : 0;
+	}
+    return stateFlags;
 }
 
 }
