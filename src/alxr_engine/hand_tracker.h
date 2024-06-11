@@ -18,16 +18,23 @@ struct XrHandTracker final {
 	bool IsSupported() const;
 	bool IsEnabled() const;
 
+	using AimStatusList = std::array<std::uint64_t, 2>;
+
 	bool GetJointLocations(const XrTime& time, const XrSpace space,
-                           ALXRHandTracking& handTrackingData) const;
+                           ALXRHandTracking& handTrackingData,
+                           AimStatusList* aimStatus = nullptr) const;
+
 	bool GetJointLocations(const XrTime& time, const XrSpace space,
                            ALXRTrackingInfo::Controller (&controllerInfo)[2]) /*const*/;
 
 private:
 	bool LoadExtFunctions();
-
+	std::uint64_t GetAimStatus(const XrHandJointLocationsEXT& jointLocations) const;
+	
 	XrContext m_ctx;
-	XrRuntimeType m_runtimeType{ XrRuntimeType::Unknown };
+	const XrRuntimeType m_runtimeType{ XrRuntimeType::Unknown };
+	const bool m_isFBHandTrackingAimSupported{ false };
+
 	struct HandTrackerData final
 	{
 		std::array<XrHandJointLocationEXT, XR_HAND_JOINT_COUNT_EXT> jointLocations;
