@@ -4,6 +4,8 @@
 #include "pch.h"
 #include <optional>
 #include <tuple>
+#include <string_view>
+#include <unordered_map>
 
 namespace ALXR {
 
@@ -23,9 +25,12 @@ enum class XrRuntimeType
 	TypeCount
 };
 
+using XrExtensionMap = std::unordered_map<std::string_view, bool>;
+
 struct XrContext {
-	XrInstance  instance = XR_NULL_HANDLE;
-	XrSession   session  = XR_NULL_HANDLE;
+	XrInstance instance = XR_NULL_HANDLE;
+	XrSession  session  = XR_NULL_HANDLE;
+	const XrExtensionMap* extensions = nullptr;
 
 	XrSystemId    GetSystemId() const;
 	XrRuntimeType GetRuntimeType() const;
@@ -37,6 +42,13 @@ struct XrContext {
 
 	constexpr bool IsValid() const {
 		return instance != XR_NULL_HANDLE && session != XR_NULL_HANDLE;
+	}
+
+	bool IsExtEnabled(const std::string_view& extName) const {
+		if (extensions == nullptr || !IsValid())
+			return false;
+		const auto ext_itr = extensions->find(extName);
+		return ext_itr != extensions->end() && ext_itr->second;
 	}
 
 	constexpr bool operator==(const XrContext& rhs) const {
