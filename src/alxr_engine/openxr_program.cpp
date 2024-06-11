@@ -454,8 +454,8 @@ struct OpenXrProgram final : IOpenXrProgram {
         XR_ENVIRONMENT_BLEND_MODE_ADDITIVE
     };
 
-    using ExtensionMap = std::unordered_map<std::string_view, bool>;
-    ExtensionMap m_availableSupportedExtMap = {
+    using XrExtensionMap = ALXR::XrExtensionMap;
+    XrExtensionMap m_availableSupportedExtMap = {
         // KHR extensions
         { XR_KHR_CONVERT_TIMESPEC_TIME_EXTENSION_NAME, false },
 #ifdef XR_USE_PLATFORM_WIN32
@@ -488,6 +488,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         { XR_FB_EYE_TRACKING_SOCIAL_EXTENSION_NAME, false },
         { XR_FB_FACE_TRACKING2_EXTENSION_NAME, false },
         { XR_FB_FACE_TRACKING_EXTENSION_NAME, false },
+        { XR_FB_HAND_TRACKING_AIM_EXTENSION_NAME, false },
         { XR_META_LOCAL_DIMMING_EXTENSION_NAME, false },
 
         { XR_HTC_VIVE_COSMOS_CONTROLLER_INTERACTION_EXTENSION_NAME, false },
@@ -505,7 +506,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         { "XR_PICO_boundary", false },
 #endif
     };
-    ExtensionMap m_supportedGraphicsContexts = {
+    XrExtensionMap m_supportedGraphicsContexts = {
 #ifdef XR_USE_GRAPHICS_API_VULKAN
         { XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME,   false },
         { XR_KHR_VULKAN_ENABLE_EXTENSION_NAME,    false },
@@ -1625,8 +1626,9 @@ struct OpenXrProgram final : IOpenXrProgram {
         }
         
         m_handTracker = std::make_unique<ALXR::XrHandTracker>(ALXR::XrContext{
-            .instance = m_instance,
-            .session  = m_session
+            .instance   = m_instance,
+            .session    = m_session,
+            .extensions = &m_availableSupportedExtMap
         });
         return IsHandTrackingEnabled();
     }
