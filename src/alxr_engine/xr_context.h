@@ -60,6 +60,29 @@ struct XrContext {
 	}
 };
 
+
+template <typename XrTargetT, typename XrSourceInT>
+constexpr inline const XrTargetT* GetChained(const XrSourceInT& val, const XrStructureType stuctType) {
+	for (auto curr = reinterpret_cast<const XrBaseInStructure*>(val.next);
+		curr != nullptr; curr = curr->next) {
+		if (curr->type == stuctType) {
+			return reinterpret_cast<const XrTargetT*>(curr);
+		}
+	}
+	return nullptr;
+}
+
+template <typename XrTargetT, typename XrSourceOutT>
+constexpr inline XrTargetT* GetChained(XrSourceOutT& val, const XrStructureType stuctType) {
+	for (auto curr = reinterpret_cast<XrBaseOutStructure*>(val.next);
+		curr != nullptr; curr = curr->next) {
+		if (curr->type == stuctType) {
+			return reinterpret_cast<XrTargetT*>(curr);
+		}
+	}
+	return nullptr;
+}
+
 constexpr inline std::string_view ToString(const XrRuntimeType t) {
 	switch (t) {
 	case XrRuntimeType::SteamVR:   return "SteamVR";

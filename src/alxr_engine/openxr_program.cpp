@@ -474,6 +474,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         { XR_EXT_LOCAL_FLOOR_EXTENSION_NAME, false },
         { XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME, false },
         { XR_EXT_HAND_TRACKING_EXTENSION_NAME, false },
+        { XR_EXT_HAND_TRACKING_DATA_SOURCE_EXTENSION_NAME, false },
 
         { XR_ANDROID_AVATAR_EYES_EXTENSION_NAME, false },
         { XR_ANDROID_FACE_TRACKING_EXTENSION_NAME, false },
