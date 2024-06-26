@@ -445,6 +445,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         { XR_EXT_LOCAL_FLOOR_EXTENSION_NAME, false },
         { XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME, false },
         { XR_EXT_HAND_TRACKING_EXTENSION_NAME, false },
+        { XR_EXT_HAND_TRACKING_DATA_SOURCE_EXTENSION_NAME, false },
 
         { XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME, false },
         { XR_FB_COLOR_SPACE_EXTENSION_NAME, false },
