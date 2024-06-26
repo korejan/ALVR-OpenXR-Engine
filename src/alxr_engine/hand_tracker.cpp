@@ -90,6 +90,7 @@ inline Eigen::Array4<bool> SphereSphereX4Test
 XrHandTracker::XrHandTracker(const XrContext& ctx)
 : m_ctx{ ctx }
 , m_runtimeType{ ctx.GetRuntimeType() }
+, m_isEXTHandTrackingDataSourceSupported{ ctx.IsExtEnabled(XR_EXT_HAND_TRACKING_DATA_SOURCE_EXTENSION_NAME) }
 , m_isFBHandTrackingAimSupported{ ctx.IsExtEnabled(XR_FB_HAND_TRACKING_AIM_EXTENSION_NAME) }
 {
     
@@ -104,9 +105,20 @@ XrHandTracker::XrHandTracker(const XrContext& ctx)
     // Create a hand tracker for left hand that tracks default set of hand joints.
     const auto createHandTracker = [&](auto& handTracker, const XrHandEXT hand)
     {
-        const XrHandTrackerCreateInfoEXT createInfo{
-            .type = XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT,
+        std::array<XrHandTrackingDataSourceEXT,1> HandDataSources = {
+            XR_HAND_TRACKING_DATA_SOURCE_UNOBSTRUCTED_EXT,
+            // TODO: server currently does not allow for both controller & hand tracking data, when this changes this can be enabled.
+            //XR_HAND_TRACKING_DATA_SOURCE_CONTROLLER_EXT,
+        };
+        const XrHandTrackingDataSourceInfoEXT dataSourceInfo = {
+            .type = XR_TYPE_HAND_TRACKING_DATA_SOURCE_INFO_EXT,
             .next = nullptr,
+            .requestedDataSourceCount = static_cast<std::uint32_t>(HandDataSources.size()),
+            .requestedDataSources = HandDataSources.data(),
+        };
+        const XrHandTrackerCreateInfoEXT createInfo = {
+            .type = XR_TYPE_HAND_TRACKER_CREATE_INFO_EXT,
+            .next = m_isEXTHandTrackingDataSourceSupported ? &dataSourceInfo : nullptr,
             .hand = hand,
             .handJointSet = XR_HAND_JOINT_SET_DEFAULT_EXT
         };
@@ -198,7 +210,7 @@ bool XrHandTracker::GetJointLocations(
     const XrTime& time,
     const XrSpace space,
     ALXRHandTracking& handTrackingData,
-    XrHandTracker::AimStatusList* aimStatuses /*= nullptr*/
+    XrHandTracker::TrackingStateList* trackingStates /* = nullptr */
 ) const {
     static_assert(sizeof(ALXRHandJointLocation) == sizeof(XrHandJointLocationEXT));
     static_assert(sizeof(ALXRHandJointVelocity) == sizeof(XrHandJointVelocityEXT));
@@ -215,13 +227,22 @@ bool XrHandTracker::GetJointLocations(
             continue;
 
         XrHandTrackingAimStateFB aimState = {
-            .type = XR_TYPE_HAND_TRACKING_AIM_STATE_FB,
-            .next = nullptr,
+            .type   = XR_TYPE_HAND_TRACKING_AIM_STATE_FB,
+            .next   = nullptr,
             .status = 0,
         };
+        XrHandTrackingDataSourceStateEXT dataSourceState = {
+			.type       = XR_TYPE_HAND_TRACKING_DATA_SOURCE_STATE_EXT,
+			.next       = m_isFBHandTrackingAimSupported ? &aimState : nullptr,
+			.isActive   = XR_TRUE,
+			.dataSource = XR_HAND_TRACKING_DATA_SOURCE_UNOBSTRUCTED_EXT,
+		};
         XrHandJointVelocitiesEXT velocities = {
             .type = XR_TYPE_HAND_JOINT_VELOCITIES_EXT,
-            .next = (m_isFBHandTrackingAimSupported && aimStatuses) ? &aimState : nullptr,
+            .next = trackingStates == nullptr ? nullptr :
+                    (m_isEXTHandTrackingDataSourceSupported ?
+                        reinterpret_cast<void*>(&dataSourceState) :
+                        (m_isFBHandTrackingAimSupported ? &aimState : nullptr)),
             .jointCount = XR_HAND_JOINT_COUNT_EXT,
             .jointVelocities = reinterpret_cast<XrHandJointVelocityEXT*>(&handData.jointVelocities[0]),
         };
@@ -239,9 +260,12 @@ bool XrHandTracker::GetJointLocations(
             .time = time
         };
         handData.isActive = XR_SUCCEEDED(xrLocateHandJointsEXT(handTracker.tracker, &locateInfo, &locations)) &&
-            locations.isActive == XR_TRUE;
-        if (aimStatuses) {
-            (*aimStatuses)[hand] = GetAimStatus(locations);
+            locations.isActive == XR_TRUE && dataSourceState.isActive == XR_TRUE;
+        if (trackingStates && handData.isActive) {
+            (*trackingStates)[hand] = {
+                .aimStatus  = GetAimStatus(locations),
+                .dataSource = GetDataSource(locations),
+            };
         }
     }
     return true;
@@ -251,10 +275,10 @@ bool XrHandTracker::GetJointLocations(const XrTime& time, const XrSpace space, A
     if (!IsEnabled() || time == 0)
         return  false;
 
-    const bool isHandOnControllerPose = //m_runtimeType == OxrRuntimeType::HTCWave ||
-                                          m_runtimeType == XrRuntimeType::SteamVR ||
-                                          m_runtimeType == XrRuntimeType::WMR ||
-                                          m_runtimeType == XrRuntimeType::MagicLeap;
+    const bool isHandOnControllerPose = !m_isEXTHandTrackingDataSourceSupported &&
+                                          (m_runtimeType == XrRuntimeType::SteamVR ||
+                                           m_runtimeType == XrRuntimeType::WMR ||
+                                           m_runtimeType == XrRuntimeType::MagicLeap);
     std::array<Eigen::Affine3f, XR_HAND_JOINT_COUNT_EXT> oculusOrientedJointPoses;
     for (std::size_t hand = 0; hand < 2; ++hand) {
 
@@ -280,21 +304,29 @@ bool XrHandTracker::GetJointLocations(const XrTime& time, const XrSpace space, A
         //    .jointCount = XR_HAND_JOINT_COUNT_EXT,
         //    .jointVelocities = handTracker.jointVelocities.data(),
         //};
-        XrHandJointLocationsEXT locations{
+        XrHandTrackingDataSourceStateEXT dataSourceState = {
+			.type       = XR_TYPE_HAND_TRACKING_DATA_SOURCE_STATE_EXT,
+			.next       = nullptr,
+			.isActive   = XR_TRUE,
+			.dataSource = XR_HAND_TRACKING_DATA_SOURCE_UNOBSTRUCTED_EXT,
+		};
+        XrHandJointLocationsEXT locations = {
             .type = XR_TYPE_HAND_JOINT_LOCATIONS_EXT,
-            .next = nullptr, // m_isFBHandTrackingAimSupported ? &aimState : nullptr,
+            .next = m_isEXTHandTrackingDataSourceSupported ? &dataSourceState : nullptr,
             .isActive = XR_FALSE,
             .jointCount = XR_HAND_JOINT_COUNT_EXT,
             .jointLocations = handTracker.jointLocations.data(),
         };
-        const XrHandJointsLocateInfoEXT locateInfo{
+        const XrHandJointsLocateInfoEXT locateInfo = {
             .type = XR_TYPE_HAND_JOINTS_LOCATE_INFO_EXT,
             .next = nullptr,
             .baseSpace = space,
             .time = time
         };
         if (XR_FAILED(xrLocateHandJointsEXT(handTracker.tracker, &locateInfo, &locations)) ||
-            locations.isActive == XR_FALSE)
+            locations.isActive == XR_FALSE ||
+            dataSourceState.isActive == XR_FALSE ||
+            dataSourceState.dataSource != XR_HAND_TRACKING_DATA_SOURCE_UNOBSTRUCTED_EXT)
             continue;
 
         const auto& jointLocations = handTracker.jointLocations;
@@ -343,14 +375,25 @@ bool XrHandTracker::GetJointLocations(const XrTime& time, const XrSpace space, A
     return true;
 }
 
+XrHandTrackingDataSourceEXT XrHandTracker::GetDataSource(const XrHandJointLocationsEXT& jointLocationsEXT) const {
+    if (m_isEXTHandTrackingDataSourceSupported) {
+        if (const auto dataSourceState = ALXR::GetChained<XrHandTrackingDataSourceStateEXT>(jointLocationsEXT, XR_TYPE_HAND_TRACKING_DATA_SOURCE_STATE_EXT)) {
+            return dataSourceState->dataSource;
+        }
+    }
+    // if XR_EXT_hand_tracking_data_source is not supported, guesstimate...
+    const bool isHandOnController = m_runtimeType == XrRuntimeType::SteamVR ||
+                                    m_runtimeType == XrRuntimeType::WMR ||
+                                    m_runtimeType == XrRuntimeType::MagicLeap;
+    return isHandOnController ?
+        XR_HAND_TRACKING_DATA_SOURCE_CONTROLLER_EXT : XR_HAND_TRACKING_DATA_SOURCE_UNOBSTRUCTED_EXT;
+}
+
 XrHandTrackingAimFlagsFB XrHandTracker::GetAimStatus(const XrHandJointLocationsEXT& jointLocationsEXT) const {
 
     if (m_isFBHandTrackingAimSupported) {
-        for (auto next = reinterpret_cast<const XrBaseInStructure*>(jointLocationsEXT.next);
-             next != nullptr; next = next->next) {
-            if (next->type == XR_TYPE_HAND_TRACKING_AIM_STATE_FB) {
-                return reinterpret_cast<const XrHandTrackingAimStateFB*>(next)->status;
-            }
+        if (const auto aimStateFB = ALXR::GetChained<XrHandTrackingAimStateFB>(jointLocationsEXT, XR_TYPE_HAND_TRACKING_AIM_STATE_FB)) {
+            return aimStateFB->status;
         }
 	}
 
