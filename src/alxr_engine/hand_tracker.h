@@ -11,6 +11,11 @@ struct ALXRHandTracking;
 
 namespace ALXR {
 
+struct HandTrackingState final {
+	XrHandTrackingAimFlagsFB    aimStatus {0};
+	XrHandTrackingDataSourceEXT dataSource{XR_HAND_TRACKING_DATA_SOURCE_UNOBSTRUCTED_EXT};
+};
+
 struct XrHandTracker final {
 	XrHandTracker(const XrContext& ctx);
 	~XrHandTracker();
@@ -18,21 +23,23 @@ struct XrHandTracker final {
 	bool IsSupported() const;
 	bool IsEnabled() const;
 
-	using AimStatusList = std::array<std::uint64_t, 2>;
+	using TrackingStateList = std::array<HandTrackingState, 2>;
 
 	bool GetJointLocations(const XrTime& time, const XrSpace space,
                            ALXRHandTracking& handTrackingData,
-                           AimStatusList* aimStatus = nullptr) const;
+                           TrackingStateList* trackingStates = nullptr) const;
 
 	bool GetJointLocations(const XrTime& time, const XrSpace space,
                            ALXRTrackingInfo::Controller (&controllerInfo)[2]) /*const*/;
 
 private:
 	bool LoadExtFunctions();
-	std::uint64_t GetAimStatus(const XrHandJointLocationsEXT& jointLocations) const;
+	XrHandTrackingDataSourceEXT GetDataSource(const XrHandJointLocationsEXT& jointLocations) const;
+	XrHandTrackingAimFlagsFB    GetAimStatus(const XrHandJointLocationsEXT& jointLocations) const;
 	
 	XrContext m_ctx;
 	const XrRuntimeType m_runtimeType{ XrRuntimeType::Unknown };
+	const bool m_isEXTHandTrackingDataSourceSupported{ false };
 	const bool m_isFBHandTrackingAimSupported{ false };
 
 	struct HandTrackerData final
