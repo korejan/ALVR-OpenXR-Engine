@@ -477,6 +477,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         { XR_EXT_LOCAL_FLOOR_EXTENSION_NAME, false },
         { XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME, false },
         { XR_EXT_HAND_TRACKING_EXTENSION_NAME, false },
+        { XR_EXT_HAND_TRACKING_DATA_SOURCE_EXTENSION_NAME, false },
         //
         // NOTE: XR_EXT_USER_PRESENCE_EXTENSION_NAME is not needed atm.
         //       Prefer sending user presence messages based on transitions to/from XR_SESSION_STATE_VISIBLE
