@@ -4,6 +4,7 @@
 
 #include "pch.h"
 #include <limits>
+#include <optional>
 
 namespace ALXR {;
 
@@ -59,23 +60,21 @@ constexpr inline const SpaceLoc IdentitySpaceLoc = { IdentityPose, {0,0,0}, {0,0
 constexpr inline const SpaceLoc ZeroSpaceLoc = { ZeroPose, {0,0,0}, {0,0,0} };
 constexpr inline const SpaceLoc InfinitySpaceLoc = { InfinityPose, {0,0,0}, {0,0,0} };
 
-inline SpaceLoc GetSpaceLocation
+inline std::optional<SpaceLoc> GetSpaceLocation
 (
     const XrSpace& targetSpace,
     const XrSpace& baseSpace,
-    const XrTime& time,
-    const SpaceLoc& initLoc = IdentitySpaceLoc
+    const XrTime& time
 )
 {
     XrSpaceVelocity velocity{ XR_TYPE_SPACE_VELOCITY, nullptr };
     XrSpaceLocation spaceLocation{ XR_TYPE_SPACE_LOCATION, &velocity };
-    const auto res = xrLocateSpace(targetSpace, baseSpace, time, &spaceLocation);
-    //CHECK_XRRESULT(res, "xrLocateSpace");
-
-    SpaceLoc result = initLoc;
-    if (!XR_UNQUALIFIED_SUCCESS(res))
-        return result;
-
+    if (XR_FAILED(xrLocateSpace(targetSpace, baseSpace, time, &spaceLocation)) ||
+        spaceLocation.locationFlags == 0) {
+		return std::nullopt;
+	}
+    
+    SpaceLoc result{ IdentitySpaceLoc };
     const auto& pose = spaceLocation.pose;
     if ((spaceLocation.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT) != 0)
         result.pose.position = pose.position;
