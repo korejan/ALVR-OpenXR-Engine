@@ -2804,10 +2804,9 @@ struct OpenXrProgram final : IOpenXrProgram {
         // Render a 10cm cube scaled by grabAction for each hand. Note renderHand will only be
         // true when the application has focus.
         for (const auto hand : { Side::LEFT, Side::RIGHT }) {
-            const auto spaceLocation = GetHandSpaceLocation(hand, predictedDisplayTime, ALXR::InfinitySpaceLoc);
-            if (!spaceLocation.is_infinity()) {
+            if (const auto spaceLocation = GetHandSpaceLocation(hand, predictedDisplayTime)) {
                 const float scale = 0.1f * HandScale[hand];
-                cubes.push_back(Cube{ spaceLocation.pose, {scale, scale, scale} });
+                cubes.push_back(Cube{ spaceLocation.value().pose, {scale, scale, scale}});
             }
         }
         return cubes;
@@ -3135,36 +3134,36 @@ struct OpenXrProgram final : IOpenXrProgram {
         return true;
     }
 
-    inline ALXR::SpaceLoc GetSpaceLocation(const XrSpace& targetSpace, const XrSpace& baseSpace, const ALXR::SpaceLoc& initLoc = ALXR::IdentitySpaceLoc) const
+    inline std::optional<ALXR::SpaceLoc> GetSpaceLocation(const XrSpace& targetSpace, const XrSpace& baseSpace) const
     {
-        return ALXR::GetSpaceLocation(targetSpace, baseSpace, m_lastPredicatedDisplayTime, initLoc);
+        return ALXR::GetSpaceLocation(targetSpace, baseSpace, m_lastPredicatedDisplayTime);
     }
 
-    inline ALXR::SpaceLoc GetSpaceLocation(const XrSpace& targetSpace, const XrTime& time, const ALXR::SpaceLoc& initLoc = ALXR::IdentitySpaceLoc) const
+    inline std::optional<ALXR::SpaceLoc> GetSpaceLocation(const XrSpace& targetSpace, const XrTime& time) const
     {
-        return ALXR::GetSpaceLocation(targetSpace, m_appSpace, time, initLoc);
+        return ALXR::GetSpaceLocation(targetSpace, m_appSpace, time);
     }
 
-    inline ALXR::SpaceLoc GetSpaceLocation(const XrSpace& targetSpace, const ALXR::SpaceLoc& initLoc = ALXR::IdentitySpaceLoc) const
+    inline std::optional<ALXR::SpaceLoc> GetSpaceLocation(const XrSpace& targetSpace) const
     {
-        return GetSpaceLocation(targetSpace, m_lastPredicatedDisplayTime, initLoc);
+        return GetSpaceLocation(targetSpace, m_lastPredicatedDisplayTime);
     }
 
-    inline ALXR::SpaceLoc GetHandSpaceLocation(const std::size_t hand, const XrSpace& baseSpace, const ALXR::SpaceLoc& initLoc = ALXR::IdentitySpaceLoc) const
+    inline std::optional<ALXR::SpaceLoc> GetHandSpaceLocation(const std::size_t hand, const XrSpace& baseSpace) const
     {
         assert(m_interactionManager != nullptr);
-        return m_interactionManager->GetSpaceLocation(hand, baseSpace, m_lastPredicatedDisplayTime, initLoc);
+        return m_interactionManager->GetSpaceLocation(hand, baseSpace, m_lastPredicatedDisplayTime);
     }
 
-    inline ALXR::SpaceLoc GetHandSpaceLocation(const std::size_t hand, const XrTime& time, const ALXR::SpaceLoc& initLoc = ALXR::IdentitySpaceLoc) const
+    inline std::optional<ALXR::SpaceLoc> GetHandSpaceLocation(const std::size_t hand, const XrTime& time) const
     {
         assert(m_interactionManager != nullptr);
-        return m_interactionManager->GetSpaceLocation(hand, m_appSpace, time, initLoc);
+        return m_interactionManager->GetSpaceLocation(hand, m_appSpace, time);
     }
 
-    inline ALXR::SpaceLoc GetHandSpaceLocation(const std::size_t hand, const ALXR::SpaceLoc& initLoc = ALXR::IdentitySpaceLoc) const
+    inline std::optional<ALXR::SpaceLoc> GetHandSpaceLocation(const std::size_t hand) const
     {
-        return GetHandSpaceLocation(hand, m_lastPredicatedDisplayTime, initLoc);
+        return GetHandSpaceLocation(hand, m_lastPredicatedDisplayTime);
     }
 
     inline std::array<XrView,2> GetPredicatedViews
@@ -3270,7 +3269,8 @@ struct OpenXrProgram final : IOpenXrProgram {
         }
         info.targetTimestampNs = predicatedDisplayTimeNs;
         
-        const auto hmdSpaceLoc = GetSpaceLocation(m_viewSpace, predicatedDisplayTimeXR);
+        const auto hmdSpaceLoc = GetSpaceLocation(m_viewSpace, predicatedDisplayTimeXR)
+            .value_or(ALXR::IdentitySpaceLoc);
         info.headPose = ToALXRPosef(hmdSpaceLoc.pose);
         // info.HeadPose_LinearVelocity    = ToALXRVector3f(hmdSpaceLoc.linearVelocity);
         // info.HeadPose_AngularVelocity   = ToALXRVector3f(hmdSpaceLoc.angularVelocity);
@@ -3280,7 +3280,8 @@ struct OpenXrProgram final : IOpenXrProgram {
 
         for (const auto hand : { Side::LEFT, Side::RIGHT }) {
             auto& newContInfo = info.controller[hand];
-            const auto spaceLoc = GetHandSpaceLocation(hand, inputPredicatedTime);
+            const auto spaceLoc = GetHandSpaceLocation(hand, inputPredicatedTime)
+                .value_or(ALXR::IdentitySpaceLoc);
 
             newContInfo.pose            = ToALXRPosef(spaceLoc.pose);
             newContInfo.linearVelocity  = ToALXRVector3f(spaceLoc.linearVelocity);
@@ -3600,8 +3601,13 @@ struct OpenXrProgram final : IOpenXrProgram {
             Log::Write(Log::Level::Info, "xrGetReferenceSpaceBoundsRect FAILED.");
             return false;
         }
-        space = GetSpaceLocation(m_boundingStageSpace, time, ALXR::InfinitySpaceLoc);
-        return !space.is_infinity();
+        auto boundingSpaceLoc = GetSpaceLocation(m_boundingStageSpace, time);
+        if (!boundingSpaceLoc) {
+            Log::Write(Log::Level::Info, "Bounding space location is not available.");
+            return false;
+        }
+        space = boundingSpaceLoc.value();
+        return true;
     }
 
     inline bool GetBoundingStageSpace(const XrTime& time, ALXRGuardianData& gd) const
