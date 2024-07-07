@@ -96,12 +96,13 @@ struct InteractionManager {
     XrPath GetXrInputPath(const InteractionProfile& profile, const std::size_t hand, const char* const str) const;
     XrPath GetXrOutputPath(const InteractionProfile& profile, const std::size_t hand, const char* const str) const;
     XrPath GetCurrentProfilePath(const std::size_t hand) const;
-    inline ALXR::SpaceLoc GetSpaceLocation
+
+    using SpaceLocOpt = std::optional<ALXR::SpaceLoc>;
+    inline SpaceLocOpt GetSpaceLocation
     (
         const std::size_t hand,
         const XrSpace& baseSpace,
-        const XrTime& time,
-        const ALXR::SpaceLoc& initLoc = ALXR::IdentitySpaceLoc
+        const XrTime& time
     ) const;
 
     inline std::optional<XrSpaceLocation> GetEyeGazeSpaceLocation
@@ -328,17 +329,16 @@ inline bool InteractionManager::IsHandActive(const std::size_t hand) const {
     return m_handActive[hand] == XR_TRUE;
 }
 
-inline ALXR::SpaceLoc InteractionManager::GetSpaceLocation
+inline InteractionManager::SpaceLocOpt InteractionManager::GetSpaceLocation
 (
     const std::size_t hand,
     const XrSpace& baseSpace,
-    const XrTime& time,
-    const ALXR::SpaceLoc& initLoc /*= IdentitySpaceLoc*/
+    const XrTime& time
 ) const
 {
     assert(hand < Side::COUNT);
     assert(m_handSpace[hand] != XR_NULL_HANDLE);
-    return ALXR::GetSpaceLocation(m_handSpace[hand], baseSpace, time, initLoc);
+    return ALXR::GetSpaceLocation(m_handSpace[hand], baseSpace, time);
 }
 
 inline std::optional<XrSpaceLocation> InteractionManager::GetEyeGazeSpaceLocation
