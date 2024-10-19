@@ -748,6 +748,11 @@ patch is inline or attached per mail.
 You can check <a class="url" href="https://patchwork.ffmpeg.org">https://patchwork.ffmpeg.org</a>, if your patch does not show up, its mime type
 likely was wrong.
 </p>
+<h4 class="subheading" id="How-to-setup-git-send_002demail_003f"><span>How to setup git send-email?<a class="copiable-link" href="#How-to-setup-git-send_002demail_003f"> &para;</a></span></h4>
+
+<p>Please see <a class="url" href="https://git-send-email.io/">https://git-send-email.io/</a>.
+For gmail additionally see <a class="url" href="https://shallowsky.com/blog/tech/email/gmail-app-passwds.html">https://shallowsky.com/blog/tech/email/gmail-app-passwds.html</a>.
+</p>
 <h4 class="subheading" id="Sending-patches-from-email-clients"><span>Sending patches from email clients<a class="copiable-link" href="#Sending-patches-from-email-clients"> &para;</a></span></h4>
 <p>Using <code class="code">git send-email</code> might not be desirable for everyone. The
 following trick allows to send patches via email clients in a safe
@@ -787,7 +792,7 @@ number) in <samp class="file">libavcodec/version.h</samp> or <samp class="file">
 
 </li><li> Did you register it in <samp class="file">allcodecs.c</samp> or <samp class="file">allformats.c</samp>?
 
-</li><li> Did you add the AVCodecID to <samp class="file">avcodec.h</samp>?
+</li><li> Did you add the AVCodecID to <samp class="file">codec_id.h</samp>?
 When adding new codec IDs, also add an entry to the codec descriptor
 list in <samp class="file">libavcodec/codec_desc.c</samp>.
 
@@ -799,7 +804,7 @@ Remember to do this even if you&rsquo;re just adding a format to a file that is
 already being compiled by some other rule, like a raw demuxer.
 
 </li><li> Did you add an entry to the table of supported formats or codecs in
-<samp class="file">doc/general.texi</samp>?
+<samp class="file">doc/general_contents.texi</samp>?
 
 </li><li> Did you add an entry in the Changelog?
 

@@ -1150,6 +1150,11 @@ expression evaluates to the value of <var class="var">expr2</var>.
 </p>
 <p>The following unary operators are available: <code class="code">+</code>, <code class="code">-</code>.
 </p>
+<p>Some internal variables can be used to store and load intermediary
+results. They can be accessed using the <code class="code">ld</code> and <code class="code">st</code>
+functions with an index argument varying from 0 to 9 to specify which
+internal variable to access.
+</p>
 <p>The following functions are available:
 </p><dl class="table">
 <dt><samp class="option">abs(x)</samp></dt>
@@ -1272,9 +1277,9 @@ result of <var class="var">y</var>, otherwise the evaluation result of <var clas
 <dd><p>Return 1.0 if <var class="var">x</var> is NAN, 0.0 otherwise.
 </p>
 </dd>
-<dt><samp class="option">ld(var)</samp></dt>
-<dd><p>Load the value of the internal variable with number
-<var class="var">var</var>, which was previously stored with st(<var class="var">var</var>, <var class="var">expr</var>).
+<dt><samp class="option">ld(idx)</samp></dt>
+<dd><p>Load the value of the internal variable with index <var class="var">idx</var>, which was
+previously stored with st(<var class="var">idx</var>, <var class="var">expr</var>).
 The function returns the loaded value.
 </p>
 </dd>
@@ -1317,23 +1322,33 @@ The function returns the loaded value.
 </dd>
 <dt><samp class="option">print(t)</samp></dt>
 <dt><samp class="option">print(t, l)</samp></dt>
-<dd><p>Print the value of expression <var class="var">t</var> with loglevel <var class="var">l</var>. If
-<var class="var">l</var> is not specified then a default log level is used.
-Returns the value of the expression printed.
-</p>
-<p>Prints t with loglevel l
+<dd><p>Print the value of expression <var class="var">t</var> with loglevel <var class="var">l</var>. If <var class="var">l</var> is not
+specified then a default log level is used.
+Return the value of the expression printed.
 </p>
 </dd>
 <dt><samp class="option">random(idx)</samp></dt>
 <dd><p>Return a pseudo random value between 0.0 and 1.0. <var class="var">idx</var> is the
-index of the internal variable which will be used to save the
-seed/state.
+index of the internal variable used to save the seed/state, which can be
+previously stored with <code class="code">st(idx)</code>.
 </p>
+<p>To initialize the seed, you need to store the seed value as a 64-bit
+unsigned integer in the internal variable with index <var class="var">idx</var>.
+</p>
+<p>For example, to store the seed with value <code class="code">42</code> in the internal
+variable with index <code class="code">0</code> and print a few random values:
+</p><div class="example">
+<pre class="example-preformatted">st(0,42); print(random(0)); print(random(0)); print(random(0))
+</pre></div>
+
 </dd>
 <dt><samp class="option">randomi(idx, min, max)</samp></dt>
 <dd><p>Return a pseudo random value in the interval between <var class="var">min</var> and
-<var class="var">max</var>. <var class="var">idx</var> is the index of the internal variable which will
-be used to save the seed/state.
+<var class="var">max</var>. <var class="var">idx</var> is the index of the internal variable which will be used to
+save the seed/state, which can be previously stored with <code class="code">st(idx)</code>.
+</p>
+<p>To initialize the seed, you need to store the seed value as a 64-bit
+unsigned integer in the internal variable with index <var class="var">idx</var>.
 </p>
 </dd>
 <dt><samp class="option">root(expr, max)</samp></dt>
@@ -1343,15 +1358,15 @@ with argument <var class="var">ld(0)</var> is 0 in the interval 0..<var class="v
 <p>The expression in <var class="var">expr</var> must denote a continuous function or the
 result is undefined.
 </p>
-<p><var class="var">ld(0)</var> is used to represent the function input value, which means
-that the given expression will be evaluated multiple times with
-various input values that the expression can access through
-<code class="code">ld(0)</code>. When the expression evaluates to 0 then the
-corresponding input value will be returned.
+<p><var class="var">ld(0)</var> is used to represent the function input value, which means that the
+given expression will be evaluated multiple times with various input values that
+the expression can access through <code class="code">ld(0)</code>. When the expression evaluates to
+0 then the corresponding input value will be returned.
 </p>
 </dd>
 <dt><samp class="option">round(expr)</samp></dt>
-<dd><p>Round the value of expression <var class="var">expr</var> to the nearest integer. For example, &quot;round(1.5)&quot; is &quot;2.0&quot;.
+<dd><p>Round the value of expression <var class="var">expr</var> to the nearest integer. For example,
+&quot;round(1.5)&quot; is &quot;2.0&quot;.
 </p>
 </dd>
 <dt><samp class="option">sgn(x)</samp></dt>
@@ -1375,12 +1390,15 @@ corresponding input value will be returned.
 <dd><p>Compute expression <code class="code">1/(1 + exp(4*x))</code>.
 </p>
 </dd>
-<dt><samp class="option">st(var, expr)</samp></dt>
+<dt><samp class="option">st(idx, expr)</samp></dt>
 <dd><p>Store the value of the expression <var class="var">expr</var> in an internal
-variable. <var class="var">var</var> specifies the number of the variable where to
-store the value, and it is a value ranging from 0 to 9. The function
-returns the value stored in the internal variable.
-Note, Variables are currently not shared between expressions.
+variable. <var class="var">idx</var> specifies the index of the variable where to store
+the value, and it is a value ranging from 0 to 9. The function returns
+the value stored in the internal variable.
+</p>
+<p>The stored value can be retrieved with <code class="code">ld(var)</code>.
+</p>
+<p>Note: variables are currently not shared between expressions.
 </p>
 </dd>
 <dt><samp class="option">tan(x)</samp></dt>
@@ -1392,16 +1410,16 @@ Note, Variables are currently not shared between expressions.
 </p>
 </dd>
 <dt><samp class="option">taylor(expr, x)</samp></dt>
-<dt><samp class="option">taylor(expr, x, id)</samp></dt>
+<dt><samp class="option">taylor(expr, x, idx)</samp></dt>
 <dd><p>Evaluate a Taylor series at <var class="var">x</var>, given an expression representing
-the <code class="code">ld(id)</code>-th derivative of a function at 0.
+the <code class="code">ld(idx)</code>-th derivative of a function at 0.
 </p>
 <p>When the series does not converge the result is undefined.
 </p>
-<p><var class="var">ld(id)</var> is used to represent the derivative order in <var class="var">expr</var>,
+<p><var class="var">ld(idx)</var> is used to represent the derivative order in <var class="var">expr</var>,
 which means that the given expression will be evaluated multiple times
 with various input values that the expression can access through
-<code class="code">ld(id)</code>. If <var class="var">id</var> is not specified then 0 is assumed.
+<code class="code">ld(idx)</code>. If <var class="var">idx</var> is not specified then 0 is assumed.
 </p>
 <p>Note, when you have the derivatives at y instead of 0,
 <code class="code">taylor(expr, x-y)</code> can be used.

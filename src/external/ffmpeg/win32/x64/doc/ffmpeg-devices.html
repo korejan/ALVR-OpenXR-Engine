@@ -692,6 +692,26 @@ Defaults to &lsquo;<samp class="samp">audio</samp>&rsquo;.
 <dt><samp class="option">draw_bars</samp></dt>
 <dd><p>If set to &lsquo;<samp class="samp">true</samp>&rsquo;, color bars are drawn in the event of a signal loss.
 Defaults to &lsquo;<samp class="samp">true</samp>&rsquo;.
+This option is deprecated, please use the <code class="code">signal_loss_action</code> option.
+</p>
+</dd>
+<dt><samp class="option">signal_loss_action</samp></dt>
+<dd><p>Sets the action to take in the event of a signal loss. Accepts one of the
+following values:
+</p>
+<dl class="table">
+<dt><samp class="option">1, none</samp></dt>
+<dd><p>Do nothing on signal loss. This usually results in black frames.
+</p></dd>
+<dt><samp class="option">2, bars</samp></dt>
+<dd><p>Draw color bars on signal loss. Only supported for 8-bit input signals.
+</p></dd>
+<dt><samp class="option">3, repeat</samp></dt>
+<dd><p>Repeat the last video frame on signal loss.
+</p></dd>
+</dl>
+
+<p>Defaults to &lsquo;<samp class="samp">bars</samp>&rsquo;.
 </p>
 </dd>
 <dt><samp class="option">queue_size</samp></dt>
@@ -1448,9 +1468,9 @@ back with <code class="command">ffplay</code>:
 <pre class="example-preformatted">ffplay -f lavfi &quot;movie=test.avi[out0];amovie=test.wav[out1]&quot;
 </pre></div>
 
-</li><li>Dump decoded frames to images and closed captions to a file (experimental):
+</li><li>Dump decoded frames to images and Closed Captions to an RCWT backup:
 <div class="example">
-<pre class="example-preformatted">ffmpeg -f lavfi -i &quot;movie=test.ts[out0+subcc]&quot; -map v frame%08d.png -map s -c copy -f rawvideo subcc.bin
+<pre class="example-preformatted">ffmpeg -f lavfi -i &quot;movie=test.ts[out0+subcc]&quot; -map v frame%08d.png -map s -c copy -f rcwt subcc.bin
 </pre></div>
 
 </li></ul>

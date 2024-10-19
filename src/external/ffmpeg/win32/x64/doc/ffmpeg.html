@@ -315,12 +315,16 @@ successive integers starting at zero. These indices should then be used to refer
 to loopback decoders in complex filtergraph link labels, as described in the
 documentation for <samp class="option">-filter_complex</samp>.
 </p>
+<p>Decoding AVOptions can be passed to loopback decoders by placing them before
+<code class="code">-dec</code>, analogously to input/output options.
+</p>
 <p>E.g. the following example:
 </p>
 <div class="example">
 <pre class="example-preformatted">ffmpeg -i INPUT                                        \
   -map 0:v:0 -c:v libx264 -crf 45 -f null -            \
-  -dec 0:0 -filter_complex '[0:v][dec:0]hstack[stack]' \
+  -threads 3 -dec 0:0                                  \
+  -filter_complex '[0:v][dec:0]hstack[stack]'          \
   -map '[stack]' -c:v ffv1 OUTPUT
 </pre></div>
 
@@ -328,10 +332,11 @@ documentation for <samp class="option">-filter_complex</samp>.
 </p><ul class="itemize mark-bullet">
 <li>(line 2) encodes it with <code class="code">libx264</code> at low quality;
 
-</li><li>(line 3) decodes this encoded stream and places it side by side with the
-original input video;
+</li><li>(line 3) decodes this encoded stream using 3 threads;
 
-</li><li>(line 4) combined video is then losslessly encoded and written into
+</li><li>(line 4) places decoded video side by side with the original input video;
+
+</li><li>(line 5) combined video is then losslessly encoded and written into
 <samp class="file">OUTPUT</samp>.
 
 </li></ul>
@@ -670,6 +675,11 @@ are part of the program and match the <var class="var">additional_stream_specifi
 <dd><p>Matches streams with the metadata tag <var class="var">key</var> having the specified value. If
 <var class="var">value</var> is not given, matches streams that contain the given tag with any
 value.
+</p></dd>
+<dt><samp class="option">disp:<var class="var">dispositions</var>[:<var class="var">additional_stream_specifier</var>]</samp></dt>
+<dd><p>Matches streams with the given disposition(s). <var class="var">dispositions</var> is a list of
+one or more dispositions (as printed by the <samp class="option">-dispositions</samp> option)
+joined with &rsquo;+&rsquo;.
 </p></dd>
 <dt><samp class="option">u</samp></dt>
 <dd><p>Matches streams with usable configuration, the codec must be defined and the
@@ -1290,10 +1300,11 @@ disposition from the first subtitle stream:
 <var class="var">stream</var>(s) to it.
 </p>
 </dd>
-<dt><samp class="option">-stream_group type=<var class="var">type</var>:st=<var class="var">stream</var>[:st=<var class="var">stream</var>][:stg=<var class="var">stream_group</var>][:id=<var class="var">stream_group_id</var>...] (<em class="emph">output</em>)</samp></dt>
+<dt><samp class="option">-stream_group [map=<var class="var">input_file_id</var>=<var class="var">stream_group</var>][type=<var class="var">type</var>:]st=<var class="var">stream</var>[:st=<var class="var">stream</var>][:stg=<var class="var">stream_group</var>][:id=<var class="var">stream_group_id</var>...] (<em class="emph">output</em>)</samp></dt>
 <dd>
-<p>Creates a stream group of the specified <var class="var">type</var>, <var class="var">stream_group_id</var> and adds the specified
-<var class="var">stream</var>(s) and/or previously defined <var class="var">stream_group</var>(s) to it.
+<p>Creates a stream group of the specified <var class="var">type</var> and <var class="var">stream_group_id</var>, or by
+<var class="var">map</var>ping an input group, adding the specified <var class="var">stream</var>(s) and/or previously
+defined <var class="var">stream_group</var>(s) to it.
 </p>
 <p><var class="var">type</var> can be one of the following:
 </p><dl class="table">
@@ -1528,6 +1539,27 @@ all sub-mix element&rsquo;s <var class="var">annotations</var>s
 
 </dd>
 </dl>
+
+<p>E.g. to create an scalable 5.1 IAMF file from several WAV input files
+</p><div class="example">
+<pre class="example-preformatted">ffmpeg -i front.wav -i back.wav -i center.wav -i lfe.wav
+-map 0:0 -map 1:0 -map 2:0 -map 3:0 -c:a opus
+-stream_group type=iamf_audio_element:id=1:st=0:st=1:st=2:st=3,
+demixing=parameter_id=998,
+recon_gain=parameter_id=101,
+layer=ch_layout=stereo,
+layer=ch_layout=5.1,
+-stream_group type=iamf_mix_presentation:id=2:stg=0:annotations=en-us=Mix_Presentation,
+submix=parameter_id=100:parameter_rate=48000|element=stg=0:parameter_id=100:annotations=en-us=Scalable_Submix|layout=sound_system=stereo|layout=sound_system=5.1
+-streamid 0:0 -streamid 1:1 -streamid 2:2 -streamid 3:3 output.iamf
+</pre></div>
+
+<p>To copy the two stream groups (Audio Element and Mix Presentation) from an input IAMF file with four
+streams into an mp4 output
+</p><div class="example">
+<pre class="example-preformatted">ffmpeg -i input.iamf -c:a copy -stream_group map=0=0:st=0:st=1:st=2:st=3 -stream_group map=0=1:stg=0
+-streamid 0:0 -streamid 1:1 -streamid 2:2 -streamid 3:3 output.mp4
+</pre></div>
 
 </dd>
 <dt><samp class="option">-target <var class="var">type</var> (<em class="emph">output</em>)</samp></dt>
@@ -2074,6 +2106,26 @@ algorithms of certain encoders: using fixed-GOP options or similar
 would be more efficient.
 </p>
 </dd>
+<dt><samp class="option">-apply_cropping[:<var class="var">stream_specifier</var>] <var class="var">source</var> (<em class="emph">input,per-stream</em>)</samp></dt>
+<dd><p>Automatically crop the video after decoding according to file metadata.
+Default is <em class="emph">all</em>.
+</p>
+<dl class="table">
+<dt><samp class="option">none (0)</samp></dt>
+<dd><p>Don&rsquo;t apply any cropping metadata.
+</p></dd>
+<dt><samp class="option">all (1)</samp></dt>
+<dd><p>Apply both codec and container level croppping. This is the default mode.
+</p></dd>
+<dt><samp class="option">codec (2)</samp></dt>
+<dd><p>Apply codec level croppping.
+</p></dd>
+<dt><samp class="option">container (3)</samp></dt>
+<dd><p>Apply container level croppping.
+</p></dd>
+</dl>
+
+</dd>
 <dt><samp class="option">-copyinkf[:<var class="var">stream_specifier</var>] (<em class="emph">output,per-stream</em>)</samp></dt>
 <dd><p>When doing stream copy, copy also non-key frames found at the
 beginning.
@@ -2148,6 +2200,12 @@ DirectX adapter on Windows.
 driver associated with the desired device. This option is available only when
 the hardware acceleration method <em class="emph">drm</em> and <em class="emph">vaapi</em> are enabled.
 </p></dd>
+<dt><samp class="option">vendor_id</samp></dt>
+<dd><p>When <var class="var">device</var> and <var class="var">kernel_driver</var> are not specified, use this option to specify
+the vendor id associated with the desired device. This option is available only when the
+hardware acceleration method <em class="emph">drm</em> and <em class="emph">vaapi</em> are enabled and <em class="emph">kernel_driver</em>
+is not specified.
+</p></dd>
 </dl>
 
 <p>Examples:
@@ -2166,6 +2224,10 @@ the hardware acceleration method <em class="emph">drm</em> and <em class="emph">
 </dd>
 <dt><em class="emph">-init_hw_device vaapi:,kernel_driver=i915</em></dt>
 <dd><p>Create a vaapi device on a device associated with kernel driver &lsquo;<samp class="samp">i915</samp>&rsquo;.
+</p>
+</dd>
+<dt><em class="emph">-init_hw_device vaapi:,vendor_id=0x8086</em></dt>
+<dd><p>Create a vaapi device on a device associated with vendor id &lsquo;<samp class="samp">0x8086</samp>&rsquo;.
 </p></dd>
 </dl>
 
@@ -2479,12 +2541,23 @@ filter the stream.
 <dt><samp class="option">-atag <var class="var">fourcc/tag</var> (<em class="emph">output</em>)</samp></dt>
 <dd><p>Force audio tag/fourcc. This is an alias for <code class="code">-tag:a</code>.
 </p></dd>
+<dt><samp class="option">-ch_layout[:<var class="var">stream_specifier</var>] <var class="var">layout</var> (<em class="emph">input/output,per-stream</em>)</samp></dt>
+<dd><p>Alias for <code class="code">-channel_layout</code>.
+</p></dd>
+<dt><samp class="option">-channel_layout[:<var class="var">stream_specifier</var>] <var class="var">layout</var> (<em class="emph">input/output,per-stream</em>)</samp></dt>
+<dd><p>Set the audio channel layout. For output streams it is set by default to the
+input channel layout. For input streams it overrides the channel layout of the
+input. Not all decoders respect the overridden channel layout. This option
+also sets the channel layout for audio grabbing devices and raw demuxers
+and is mapped to the corresponding demuxer option.
+</p></dd>
 <dt><samp class="option">-guess_layout_max <var class="var">channels</var> (<em class="emph">input,per-stream</em>)</samp></dt>
 <dd><p>If some input channel layout is not known, try to guess only if it
 corresponds to at most the specified number of channels. For example, 2
 tells to <code class="command">ffmpeg</code> to recognize 1 channel as mono and 2 channels as
 stereo but not 6 channels as 5.1. The default is to always try to guess. Use
-0 to disable all guessing.
+0 to disable all guessing. Using the <code class="code">-channel_layout</code> option to
+explicitly specify an input layout also disables guessing.
 </p></dd>
 </dl>
 
@@ -2537,7 +2610,7 @@ lot.
 <h3 class="section"><span>5.11 Advanced options<a class="copiable-link" href="#Advanced-options"> &para;</a></span></h3>
 
 <dl class="table">
-<dt><samp class="option">-map [-]<var class="var">input_file_id</var>[:<var class="var">stream_specifier</var>][?] | <var class="var">[linklabel]</var> (<em class="emph">output</em>)</samp></dt>
+<dt><samp class="option">-map [-]<var class="var">input_file_id</var>[:<var class="var">stream_specifier</var>][:<var class="var">view_specifier</var>][?] | <var class="var">[linklabel]</var> (<em class="emph">output</em>)</samp></dt>
 <dd>
 <p>Create one or more streams in the output file. This option has two forms for
 specifying the data source(s): the first selects one or more streams from some
@@ -2551,6 +2624,29 @@ only those streams that match the specifier are used (see the
 </p>
 <p>A <code class="code">-</code> character before the stream identifier creates a &quot;negative&quot; mapping.
 It disables matching streams from already created mappings.
+</p>
+<p>An optional <var class="var">view_specifier</var> may be given after the stream specifier, which
+for multiview video specifies the view to be used. The view specifier may have
+one of the following formats:
+</p><dl class="table">
+<dt><samp class="option">view:<var class="var">view_id</var></samp></dt>
+<dd><p>select a view by its ID; <var class="var">view_id</var> may be set to &rsquo;all&rsquo; to use all the views
+interleaved into one stream;
+</p>
+</dd>
+<dt><samp class="option">vidx:<var class="var">view_idx</var></samp></dt>
+<dd><p>select a view by its index; i.e. 0 is the base view, 1 is the first non-base
+view, etc.
+</p>
+</dd>
+<dt><samp class="option">vpos:<var class="var">position</var></samp></dt>
+<dd><p>select a view by its display position; <var class="var">position</var> may be <code class="code">left</code> or
+<code class="code">right</code>
+</p></dd>
+</dl>
+<p>The default for transcoding is to only use the base view, i.e. the equivalent of
+<code class="code">vidx:0</code>. For streamcopy, view specifiers are not supported and all views
+are always copied.
 </p>
 <p>A trailing <code class="code">?</code> after the stream index will allow the map to be
 optional: if the map matches no streams the map will be ignored instead
@@ -2986,16 +3082,61 @@ on input or output - that would change if transcoding was happening.
 outputs. For simple graphs &ndash; those with one input and one output of the same
 type &ndash; see the <samp class="option">-filter</samp> options. <var class="var">filtergraph</var> is a description of
 the filtergraph, as described in the &ldquo;Filtergraph syntax&rdquo; section of the
-ffmpeg-filters manual.
+ffmpeg-filters manual. This option may be specified multiple times - each use
+creates a new complex filtergraph.
 </p>
-<p>Input link labels must refer to either input streams or loopback decoders. For
-input streams, use the <code class="code">[file_index:stream_specifier]</code> syntax (i.e. the
-same as <samp class="option">-map</samp> uses). If <var class="var">stream_specifier</var> matches multiple streams,
-the first one will be used.
+<p>Inputs to a complex filtergraph may come from different source types,
+distinguished by the format of the corresponding link label:
+</p><ul class="itemize mark-bullet">
+<li>To connect an input stream, use <code class="code">[file_index:stream_specifier]</code> (i.e. the
+same syntax as <samp class="option">-map</samp>). If <var class="var">stream_specifier</var> matches multiple
+streams, the first one will be used. For multiview video, the stream specifier
+may be followed by the view specifier, see documentation for the <samp class="option">-map</samp>
+option for its syntax.
+
+</li><li>To connect a loopback decoder use [dec:<var class="var">dec_idx</var>], where <var class="var">dec_idx</var> is
+the index of the loopback decoder to be connected to given input. For multiview
+video, the decoder index may be followed by the view specifier, see
+documentation for the <samp class="option">-map</samp> option for its syntax.
+
+</li><li>To connect an output from another complex filtergraph, use its link label. E.g
+the following example:
+
+<div class="example">
+<pre class="example-preformatted">ffmpeg -i input.mkv \
+  -filter_complex '[0:v]scale=size=hd1080,split=outputs=2[for_enc][orig_scaled]' \
+  -c:v libx264 -map '[for_enc]' output.mkv \
+  -dec 0:0 \
+  -filter_complex '[dec:0][orig_scaled]hstack[stacked]' \
+  -map '[stacked]' -c:v ffv1 comparison.mkv
+</pre></div>
+
+<p>reads an input video and
+</p><ul class="itemize mark-bullet">
+<li>(line 2) uses a complex filtergraph with one input and two outputs
+to scale the video to 1920x1080 and duplicate the result to both
+outputs;
+
+</li><li>(line 3) encodes one scaled output with <code class="code">libx264</code> and writes the result to
+<samp class="file">output.mkv</samp>;
+
+</li><li>(line 4) decodes this encoded stream with a loopback decoder;
+
+</li><li>(line 5) places the output of the loopback decoder (i.e. the
+<code class="code">libx264</code>-encoded video) side by side with the scaled original input;
+
+</li><li>(line 6) combined video is then losslessly encoded and written into
+<samp class="file">comparison.mkv</samp>.
+
+</li></ul>
+
+<p>Note that the two filtergraphs cannot be combined into one, because then there
+would be a cycle in the transcoding pipeline (filtergraph output goes to
+encoding, from there to decoding, then back to the same graph), and such cycles
+are not allowed.
 </p>
-<p>For decoders, the link label must be [dec:<var class="var">dec_idx</var>], where <var class="var">dec_idx</var> is
-the index of the loopback decoder to be connected to given input.
-</p>
+</li></ul>
+
 <p>An unlabeled input will be connected to the first unused input stream of the
 matching type.
 </p>
