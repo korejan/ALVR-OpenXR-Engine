@@ -3439,7 +3439,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
     constexpr static inline std::size_t StagingBufferSize(const std::size_t w, const std::size_t h, const VkFormat format)
     {
-        return (w * h * LumaSize(format)) + (((w * h) / 2) * ChromaSize(format));
+        return (w * h * LumaSize(format)) + (((w * h) / 4) * ChromaSize(format));
     }
 
     VkDeviceSize createStaggingBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
@@ -3798,8 +3798,8 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             vidTex.texture.Create
             (
                 m_vkDevice, &m_memAllocator,
-                static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height),
-                pixelFmt, VK_IMAGE_TILING_LINEAR, VK_IMAGE_CREATE_MUTABLE_FORMAT_BIT
+                static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), pixelFmt,
+                VK_IMAGE_TILING_OPTIMAL
             );
             CHECK(vidTex.texture.IsValid());
             
@@ -3860,7 +3860,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
                 .viewType = VK_IMAGE_VIEW_TYPE_2D,
                 .format = pixelFmt,
                 .subresourceRange = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, // VK_IMAGE_ASPECT_PLANE_0_BIT | VK_IMAGE_ASPECT_PLANE_1_BIT;//VK_IMAGE_ASPECT_COLOR_BIT;
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                     .baseMipLevel = 0,
                     .levelCount = 1,
                     .baseArrayLayer = 0,
@@ -3876,6 +3876,9 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
     virtual void CreateVideoTexturesD3D11VA(const std::size_t width, const std::size_t height, const XrPixelFormat pixfmt) override
     {
+#if !defined(ALXR_ENABLE_VULKAN_D3D11VA_BUFFER_INTEROP)
+        CreateVideoTextures(width, height, pixfmt);
+#else
 #if defined(XR_USE_GRAPHICS_API_D3D11)
         CHECK_MSG((pixfmt != XrPixelFormat::G8_B8_R8_3PLANE_420 &&
             pixfmt != XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420), "3-Planes formats are not supported!");
@@ -3915,7 +3918,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
                 .Usage = D3D11_USAGE_DEFAULT,
                 .BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET,
                 .CPUAccessFlags = 0,
-                .MiscFlags = D3D11_RESOURCE_MISC_SHARED_NTHANDLE | D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX //D3D11_RESOURCE_MISC_SHARED;// D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX,
+                .MiscFlags = D3D11_RESOURCE_MISC_SHARED_NTHANDLE | D3D11_RESOURCE_MISC_SHARED
             };
             ID3D11Texture2DPtr newTex{};
             if (FAILED(m_d3d11vaDevice->CreateTexture2D(&descDepth, nullptr, newTex.ReleaseAndGetAddressOf())))
@@ -3964,6 +3967,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 #else
         (void)width; (void)height; (void)pixfmt;
 #endif
+#endif
     }
 
     bool WaitForAvailableBuffer()
@@ -3987,7 +3991,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
         const std::size_t textureSize = videoTex.width * videoTex.height;
         const VkDeviceSize uPlaneOffset = textureSize * lumaSize;
-        const VkDeviceSize vPlaneOffset = has3Planes ? uPlaneOffset + ((textureSize / 2) * chromaUSize) : 0;
+        const VkDeviceSize vPlaneOffset = has3Planes ? (uPlaneOffset + ((textureSize / 4) * chromaUSize)) : 0;
 
         void* data = nullptr;
         vkMapMemory(m_vkDevice, videoTex.stagingBufferMemory, 0, videoTex.stagingBufferSize, 0, &data);
@@ -4318,6 +4322,9 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
     virtual void UpdateVideoTextureD3D11VA(const YUVBuffer& yuvBuffer) override
     {
+#if !defined(ALXR_ENABLE_VULKAN_D3D11VA_BUFFER_INTEROP)
+        UpdateVideoTexture(yuvBuffer);
+#else
 #if defined(XR_USE_GRAPHICS_API_D3D11)
         const std::size_t freeIndex = m_currentVideoTex.load();
         {
@@ -4364,6 +4371,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         m_renderTex.store(freeIndex);
 #else
         (void)yuvBuffer;
+#endif
 #endif
     }
 

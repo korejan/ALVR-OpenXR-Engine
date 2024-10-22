@@ -213,7 +213,12 @@ constexpr inline XrPixelFormat GetXrPixelFormat(const AVFrame& frame, const AVCo
     }
 }
 
-constexpr inline auto GetVideoTextureMemFuns(const ALXRDecoderType decoderType)
+inline bool IsApiVulkan(const IGraphicsPlugin& gp) {
+    const auto gpType = gp.GetGraphicsBinding()->type;
+    return gpType == XR_TYPE_GRAPHICS_BINDING_VULKAN2_KHR || gpType == XR_TYPE_GRAPHICS_BINDING_VULKAN_KHR;
+}
+
+constexpr inline auto GetVideoTextureMemFuns(const IGraphicsPlugin& gp, const ALXRDecoderType decoderType)
 {
     using CreateFnType = decltype(&IGraphicsPlugin::CreateVideoTextures);
     using UpdateFnType = decltype(&IGraphicsPlugin::UpdateVideoTexture);
@@ -223,10 +228,14 @@ constexpr inline auto GetVideoTextureMemFuns(const ALXRDecoderType decoderType)
     case ALXRDecoderType::CUVID:
     case ALXRDecoderType::NVDEC:
         return RetType(&IGraphicsPlugin::CreateVideoTexturesCUDA, &IGraphicsPlugin::UpdateVideoTextureCUDA, true);
+    // case ALXRDecoderType::VAAPI:
+    //     return RetType(&IGraphicsPlugin::CreateVideoTexturesVAAPI, &IGraphicsPlugin::UpdateVideoTextureVAAPI);
     case ALXRDecoderType::D311VA:
-        return RetType(&IGraphicsPlugin::CreateVideoTexturesD3D11VA, &IGraphicsPlugin::UpdateVideoTextureD3D11VA, true);
-        // case ALXRDecoderType::VAAPI:
-        //     return RetType(&IGraphicsPlugin::CreateVideoTexturesVAAPI, &IGraphicsPlugin::UpdateVideoTextureVAAPI);
+        // D3D11VA-vulkan buffer interop not working.
+        if (!IsApiVulkan(gp)) {
+            return RetType(&IGraphicsPlugin::CreateVideoTexturesD3D11VA, &IGraphicsPlugin::UpdateVideoTextureD3D11VA, true);
+        } // if vulkan, fall through to default.
+        [[fallthrough]];
     default: return RetType(&IGraphicsPlugin::CreateVideoTextures, &IGraphicsPlugin::UpdateVideoTexture, false);
     }
 }
@@ -417,7 +426,7 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
             return false;
         }
 
-        const auto [CreateVideoTextures, UpdateVideoTextures, isBufferInteropSupported] = GetVideoTextureMemFuns(m_ctx.decoderType);
+        const auto [CreateVideoTextures, UpdateVideoTextures, isBufferInteropSupported] = GetVideoTextureMemFuns(*graphicsPluginPtr, m_ctx.decoderType);
         assert(CreateVideoTextures != nullptr && UpdateVideoTextures != nullptr);
                 
         using namespace std::literals::chrono_literals;
