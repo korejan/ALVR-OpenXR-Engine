@@ -18,6 +18,11 @@ namespace ALXR {
     enum class YcbcrRange : std::uint32_t;
 }
 
+namespace ALXR::Vk {
+    struct QueueIndex;
+    struct VkContext;
+}
+
 struct Cube {
     XrPosef Pose;
     XrVector3f Scale;
@@ -162,6 +167,11 @@ struct IGraphicsPlugin {
     virtual void SetBlendModeParams(const float /*alpha*/ = 0.6f) {}
 
     virtual bool SetVisibilityMask(uint32_t /*viewIndex*/, const struct XrVisibilityMaskKHR& /*visibilityMask*/) { return true; }
+
+    virtual bool GetVkContext(ALXR::Vk::VkContext& /*vkContext*/) { return false; }
+    using QueueIndex = ALXR::Vk::QueueIndex;
+    virtual void LockQueue(const QueueIndex& /*queueIndex*/) {}
+    virtual void UnlockQueue(const QueueIndex& /*queueIndex*/) {}
 };
 
 // Create a graphics plugin for the graphics API specified in the options.

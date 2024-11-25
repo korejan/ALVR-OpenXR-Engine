@@ -31,7 +31,8 @@ enum class ALXRDecoderType : uint32_t
     NVDEC,
     CUVID,
     VAAPI,
-    CPU
+    CPU,
+    VULKAN,
 };
 
 enum class ALXRFacialExpressionType : uint8_t {
