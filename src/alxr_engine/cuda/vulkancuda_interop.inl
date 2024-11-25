@@ -31,7 +31,7 @@ void InitVKExts()
 {
 #ifdef _WIN64
     fpGetMemoryWin32HandleKHR =
-        (PFN_vkGetMemoryWin32HandleKHR)vkGetInstanceProcAddr(m_vkInstance, "vkGetMemoryWin32HandleKHR");
+        (PFN_vkGetMemoryWin32HandleKHR)vkGetInstanceProcAddr(m_vkCtx.instance, "vkGetMemoryWin32HandleKHR");
     if (fpGetMemoryWin32HandleKHR == nullptr) {
         throw std::runtime_error(
             "Vulkan: Proc address for \"vkGetMemoryWin32HandleKHR\" not "
@@ -39,7 +39,7 @@ void InitVKExts()
     }
 #else
     fpGetMemoryFdKHR = (PFN_vkGetMemoryFdKHR)vkGetInstanceProcAddr(
-        m_vkInstance, "vkGetMemoryFdKHR");
+        m_vkCtx.instance, "vkGetMemoryFdKHR");
     if (fpGetMemoryFdKHR == nullptr) {
         throw std::runtime_error(
             "Vulkan: Proc address for \"vkGetMemoryFdKHR\" not found.\n");
@@ -52,14 +52,14 @@ void InitVKExts()
 
 #ifdef _WIN64
     fpGetSemaphoreWin32HandleKHR =
-        (PFN_vkGetSemaphoreWin32HandleKHR)vkGetDeviceProcAddr(m_vkDevice, "vkGetSemaphoreWin32HandleKHR");
+        (PFN_vkGetSemaphoreWin32HandleKHR)vkGetDeviceProcAddr(m_vkCtx.device, "vkGetSemaphoreWin32HandleKHR");
     if (fpGetSemaphoreWin32HandleKHR == NULL) {
         throw std::runtime_error(
             "Vulkan: Proc address for \"vkGetSemaphoreWin32HandleKHR\" not "
             "found.\n");
     }
 #else
-    fpGetSemaphoreFdKHR = (PFN_vkGetSemaphoreFdKHR)vkGetDeviceProcAddr(m_vkDevice, "vkGetSemaphoreFdKHR");
+    fpGetSemaphoreFdKHR = (PFN_vkGetSemaphoreFdKHR)vkGetDeviceProcAddr(m_vkCtx.device, "vkGetSemaphoreFdKHR");
     if (fpGetSemaphoreFdKHR == NULL) {
         throw std::runtime_error(
             "Vulkan: Proc address for \"vkGetSemaphoreFdKHR\" not found.\n");
@@ -145,7 +145,7 @@ HANDLE getVkImageMemHandle(VkDeviceMemory textureImageMemory, VkExternalMemoryHa
         .handleType = (VkExternalMemoryHandleTypeFlagBitsKHR)externalMemoryHandleType,
     };
     HANDLE handle{};
-    fpGetMemoryWin32HandleKHR(m_vkDevice, &vkMemoryGetWin32HandleInfoKHR, &handle);
+    fpGetMemoryWin32HandleKHR(m_vkCtx.device, &vkMemoryGetWin32HandleInfoKHR, &handle);
     return handle;
 }
 
@@ -158,7 +158,7 @@ HANDLE getVkSemaphoreHandle(VkExternalSemaphoreHandleTypeFlagBitsKHR externalSem
         .handleType = externalSemaphoreHandleType
     };
     HANDLE handle{};
-    fpGetSemaphoreWin32HandleKHR(m_vkDevice, &vulkanSemaphoreGetWin32HandleInfoKHR, &handle);
+    fpGetSemaphoreWin32HandleKHR(m_vkCtx.device, &vulkanSemaphoreGetWin32HandleInfoKHR, &handle);
     return handle;
 }
 
@@ -288,7 +288,7 @@ virtual void CreateVideoTexturesCUDA(const CreateVideoTextureInfo& info) overrid
         vidTex.format = pixelFmt;
         vidTex.texture.CreateExported
         (
-            m_vkDevice, &m_memAllocator,
+            m_vkCtx.device, &m_memAllocator,
             static_cast<std::uint32_t>(info.width), static_cast<std::uint32_t>(info.height), pixelFmt,
             VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_CREATE_DISJOINT_BIT
         );
@@ -312,7 +312,7 @@ virtual void CreateVideoTexturesCUDA(const CreateVideoTextureInfo& info) overrid
                 .layerCount = 1,
             }
         };
-        CHECK_VKCMD(vkCreateImageView(m_vkDevice, &viewInfo, nullptr, &vidTex.imageView));
+        CHECK_VKCMD(vkCreateImageView(m_vkCtx.device, &viewInfo, nullptr, &vidTex.imageView));
 
         SetVideoTextureBindings(vidTex);
 

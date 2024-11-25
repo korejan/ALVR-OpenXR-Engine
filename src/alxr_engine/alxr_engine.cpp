@@ -84,6 +84,13 @@ constexpr inline bool is_valid(const ALXRClientCtx& rCtx)
 
 bool alxr_init(const ALXRClientCtx* rCtx, /*[out]*/ ALXRSystemProperties* systemProperties) {
     try {
+#if 0
+        while (!::IsDebuggerPresent()) {
+            ::Sleep(100);
+        }
+        __debugbreak();
+#endif
+
         if (rCtx == nullptr || !is_valid(*rCtx))
         {
             Log::Write(Log::Level::Error, "Rust context has not been setup!");
