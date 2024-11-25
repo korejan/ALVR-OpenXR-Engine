@@ -24,6 +24,7 @@ extern "C" {
 // #include <libavformat/avformat.h> TODO: CHECK!
 #include <libswscale/swscale.h>
 #include <libavutil/hwcontext.h>
+#include <libavutil/hwcontext_vulkan.h>
 #ifdef XR_USE_PLATFORM_WIN32
 #include <libavutil/hwcontext_d3d11va.h>
 #endif
@@ -41,6 +42,7 @@ extern "C" {
 #include "latency_manager.h"
 #include "timing.h"
 #include "xr_colorspaces.h"
+#include "vk_context.h"
 
 namespace {;
 template < typename AVType, void(&avdeleter)(AVType*) >
@@ -137,6 +139,7 @@ constexpr inline const char* ToString(const ALXRDecoderType dtype)
     case ALXRDecoderType::D311VA: return "D3D11VA";
     case ALXRDecoderType::VAAPI: return "VAAPI";
     case ALXRDecoderType::CPU: return "CPU";
+    case ALXRDecoderType::VULKAN: return "VULKAN";
     default: return "Unknown";
     }
 }
@@ -149,6 +152,7 @@ constexpr inline AVHWDeviceType ToAVHWDeviceType(const ALXRDecoderType dtype)
     case ALXRDecoderType::CUVID:  return AV_HWDEVICE_TYPE_CUDA;
     case ALXRDecoderType::D311VA: return AV_HWDEVICE_TYPE_D3D11VA;
     case ALXRDecoderType::VAAPI: return AV_HWDEVICE_TYPE_VAAPI;
+    case ALXRDecoderType::VULKAN: return AV_HWDEVICE_TYPE_VULKAN;
     default: return AV_HWDEVICE_TYPE_NONE;
     }
 }
@@ -202,7 +206,7 @@ constexpr inline ALXR::YcbcrFormat GetXrPixelFormat(const AVFrame& frame, const 
     case AV_PIX_FMT_D3D11:
     case AV_PIX_FMT_D3D11VA_VLD:
     case AV_PIX_FMT_VAAPI:
-        //case AV_PIX_FMT_VULKAN:
+    case AV_PIX_FMT_VULKAN:
         //case AV_PIX_FMT_QSV:
         assert(PlaneCount(frame) < 3);
         return ToXrPixelFormat(codecCtx.sw_pix_fmt);
@@ -212,7 +216,6 @@ constexpr inline ALXR::YcbcrFormat GetXrPixelFormat(const AVFrame& frame, const 
         case 3:  return ToXrPixel3PlaneFormat(frameFmt);
         default: return ALXR::YcbcrFormat::Unknown;
         }
-
     }
 }
 
@@ -303,6 +306,7 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
     using IOpenXrProgramPtr = std::shared_ptr<IOpenXrProgram>;
     using ALXRClientCtxPtr  = std::shared_ptr<const ALXRClientCtx>;
 
+    ALXR::Vk::DeviceFeatures m_vkDeviceFeatures{};
     IDecoderPlugin::RunCtx m_ctx;
 
     AVPacketQueue/*Ptr*/ m_avPacketQueue;
@@ -348,6 +352,18 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
         return true;
     }
 
+    static void AVLockQueueVk(AVHWDeviceContext* ctx, std::uint32_t queue_family, std::uint32_t index) {
+        if (auto graphicsPtr = reinterpret_cast<IGraphicsPlugin*>(ctx->user_opaque)) {
+            graphicsPtr->LockQueue({ queue_family, index });
+        }
+    }
+
+    static void AVUnlockQueueVk(AVHWDeviceContext* ctx, std::uint32_t queue_family, std::uint32_t index) {        
+        if (auto graphicsPtr = reinterpret_cast<IGraphicsPlugin*>(ctx->user_opaque)) {
+            graphicsPtr->UnlockQueue({ queue_family, index });
+        }
+    }
+
     virtual bool Run(IDecoderPlugin::shared_bool& isRunningToken) override
     {
         using AVCodecContextPtr = make_av_ptr_type2<AVCodecContext, avcodec_free_context>;
@@ -358,6 +374,13 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
             Log::Write(Log::Level::Warning, "Decoder run parameters not valid.");
             return false;
         }
+
+#if 0
+        while (!::IsDebuggerPresent()) {
+            ::Sleep(100);
+        }
+        __debugbreak();
+#endif
 
         const auto graphicsPluginPtr = [&]() -> GraphicsPluginPtr
         {
@@ -458,7 +481,106 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
         }
         else
 #endif
-        if (type != AV_HWDEVICE_TYPE_NONE)
+        if (type == AV_HWDEVICE_TYPE_VULKAN) {
+            Log::Write(Log::Level::Verbose, "Init AV_HWDEVICE_TYPE_VULKAN");
+
+            ALXR::Vk::VkContext vkCtx{};
+            if (!graphicsPluginPtr->GetVkContext(vkCtx)) {
+                Log::Write(Log::Level::Error, "Failed to get Vulkan context.");
+                return false;
+            }
+
+            m_vkDeviceFeatures = {};
+            if (!vkCtx.GetRequiredDeviceFeatures(m_vkDeviceFeatures)) {
+                Log::Write(Log::Level::Error, "Failed to get Vulkan context.");
+                return false;
+            }
+
+            hw_device_ctx.reset(av_hwdevice_ctx_alloc(type));
+            if (hw_device_ctx == nullptr) {
+                Log::Write(Log::Level::Error, "Failed to create specified HW device.\n");
+                return false;
+            }
+            auto avDeviceContext = (AVHWDeviceContext*)hw_device_ctx->data;
+            avDeviceContext->user_opaque = graphicsPluginPtr.get();
+            auto avVkDeviceContext = (AVVulkanDeviceContext*)avDeviceContext->hwctx;
+            *avVkDeviceContext = {
+                .alloc = vkCtx.allocator,
+                .get_proc_addr = vkGetInstanceProcAddr,
+                .inst = vkCtx.instance,
+                .phys_dev = vkCtx.physicalDevice,
+                .act_dev = vkCtx.device,
+                .device_features = m_vkDeviceFeatures.features2,
+                .enabled_inst_extensions = vkCtx.instanceExtensions->data(),
+                .nb_enabled_inst_extensions = static_cast<int>(vkCtx.instanceExtensions->size()),
+                .enabled_dev_extensions = vkCtx.deviceExtensions->data(),
+                .nb_enabled_dev_extensions = static_cast<int>(vkCtx.deviceExtensions->size()),
+#if FF_API_VULKAN_FIXED_QUEUES
+                .queue_family_index = -1,
+                .nb_graphics_queues = 0,
+                .queue_family_tx_index = -1,
+                .nb_tx_queues = 0,
+                .queue_family_comp_index = -1,
+                .nb_comp_queues = 0,
+                .queue_family_encode_index = -1,
+                .nb_encode_queues = 0,
+                .queue_family_decode_index = -1,
+                .nb_decode_queues = 0,
+#endif
+                .lock_queue = AVLockQueueVk,
+                .unlock_queue = AVUnlockQueueVk,
+                .nb_qf = 0,
+            };
+            if (vkCtx.avQueueFamilies) {
+                const auto& avQueueFamilies = vkCtx.avQueueFamilies->queueFamilies;
+                const std::size_t queueFamilyCount = std::min(
+                    avQueueFamilies.size(),
+                    std::size(avVkDeviceContext->qf)
+                );
+                avVkDeviceContext->nb_qf = static_cast<int>(queueFamilyCount);
+                for (std::size_t queueFamilyIdx = 0; queueFamilyIdx < queueFamilyCount; ++queueFamilyIdx) {
+                    const auto& queueFamilySrc = avQueueFamilies[queueFamilyIdx];
+                    avVkDeviceContext->qf[queueFamilyIdx] = {
+                        .idx = (int)queueFamilySrc.familyIndex,
+                        .num = (int)queueFamilySrc.queueCount,
+                        .flags = (VkQueueFlagBits)queueFamilySrc.queueFlags,
+#ifdef VK_KHR_video_queue
+                        .video_caps = (VkVideoCodecOperationFlagBitsKHR)queueFamilySrc.videoCodecOperations,
+#endif
+                    };
+                }
+#if FF_API_VULKAN_FIXED_QUEUES
+#pragma warning(push)
+#pragma warning(disable : 4996)
+                const auto& legacyFamilyQueues = vkCtx.avQueueFamilies->queueFamilyIndex;
+                if (legacyFamilyQueues.decode != ALXR::Vk::NullQueueIndex) {                    
+                    const auto getQueueCount = [&avQueueFamilies](const std::uint32_t queueFamilyIdx) -> int {
+                        if (queueFamilyIdx == ALXR::Vk::NullQueueIndex)
+                            return 0;
+                        const auto itr = std::find_if(
+                            avQueueFamilies.begin(), avQueueFamilies.end(),
+                            [queueFamilyIdx](const ALXR::Vk::QueueFamily& qf) { return qf.familyIndex == queueFamilyIdx; }
+                        );
+                        if (itr == avQueueFamilies.end()) return 0;
+                        return itr->queueCount;
+                    };
+                    avVkDeviceContext->queue_family_decode_index = legacyFamilyQueues.decode;
+                    avVkDeviceContext->nb_decode_queues = getQueueCount(legacyFamilyQueues.decode);
+
+                    avVkDeviceContext->queue_family_comp_index = legacyFamilyQueues.compute;
+                    avVkDeviceContext->nb_comp_queues = getQueueCount(legacyFamilyQueues.compute);
+
+                    avVkDeviceContext->queue_family_tx_index = legacyFamilyQueues.transfer;
+                    avVkDeviceContext->nb_tx_queues = getQueueCount(legacyFamilyQueues.compute);
+                }
+#pragma warning(pop)
+#endif
+            }
+
+            av_hwdevice_ctx_init(hw_device_ctx.get());
+            codecCtx->hw_device_ctx = av_buffer_ref(hw_device_ctx.get());
+        }
+        else if (type != AV_HWDEVICE_TYPE_NONE)
         {
             AVBufferRef* device_ctx = nullptr;
             int err = 0;
@@ -475,6 +597,7 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
             return false;
         }
 
+        const AVFramePtr NullFrame{nullptr};
         const AVFramePtr swFrame{ av_frame_alloc() };
         const AVFramePtr hwFrame{ av_frame_alloc() };
         if (swFrame == nullptr || hwFrame == nullptr) {
@@ -518,11 +641,16 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
                 if (isBufferInteropSupported || type == AV_HWDEVICE_TYPE_NONE)
                     return hwFrame;
                 CHECK(hwFrame->format == m_hwPixFmt);
-                CHECK((av_hwframe_transfer_data(swFrame.get(), hwFrame.get(), 0) == 0));
+                const auto result = av_hwframe_transfer_data(swFrame.get(), hwFrame.get(), 0);
+                if (result < 0) {
+                    LogLibAV(Log::Level::Warning, result, "Failed to transfer hw-frame to sw-frame");
+                    return NullFrame;
+                }
                 av_frame_copy_props(swFrame.get(), hwFrame.get());
                 return swFrame;
             }();
-            assert(avFrame != nullptr);
+            if (avFrame == nullptr)
+                continue;
 
             std::call_once(once_flag, [&/*, cvt = CreateVideoTextures*/]()
             {
