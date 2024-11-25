@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <locale>
+#include <functional>
 #include <algorithm>
 #include <memory>
 #include <stdarg.h>
@@ -99,6 +100,19 @@ constexpr inline size_t ArraySize(const T (&/*unused*/)[Size]) noexcept {
 template <typename T, size_t Size>
 constexpr inline size_t ArraySizeOf(const std::array<T,Size>&) noexcept {
     return sizeof(T) * Size;
+}
+
+template <typename T>
+inline void HashCombine(std::size_t& seed, const T& value) noexcept {
+    std::hash<T> hasher;
+    seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+template <typename... Args>
+inline std::size_t HashCombineAll(const Args&... args) noexcept {
+    std::size_t seed = 0;
+    (HashCombine(seed, args), ...);  // Fold expression
+    return seed;
 }
 
 #include "logger.h"
