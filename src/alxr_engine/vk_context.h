@@ -54,27 +54,32 @@ struct AVQueueFamilyList {
 
 // legacy AV queue family indices
     struct {
+        std::uint32_t graphics{ NullQueueFamilyIndex };
         std::uint32_t decode{ NullQueueFamilyIndex };
         std::uint32_t compute{ NullQueueFamilyIndex };
         std::uint32_t transfer{ NullQueueFamilyIndex };
     } queueFamilyIndex;
 };
 
-struct VkContext {
+struct VkContext final {
     VkPhysicalDevice physicalDevice{ VK_NULL_HANDLE };
     VkDevice         device{ VK_NULL_HANDLE };
     VkInstance       instance{ VK_NULL_HANDLE };
     VkAllocationCallbacks* allocator{ nullptr };
+    
+#ifdef VK_KHR_synchronization2
+    PFN_vkCmdPipelineBarrier2KHR vkCmdPipelineBarrier2KHR{nullptr};
+#endif
 
     // @graphicsQueueIndex:
     //   main graphics queue index used by alxr's main render thread, if other components
     QueueIndex graphicsQueue { (std::uint32_t)-1, (std::uint32_t)-1, };
 
     using ExtensionList = std::vector<const char*>;
-    const ExtensionList* instanceExtensions{nullptr};
-    const ExtensionList* deviceExtensions{nullptr};
+    ExtensionList instanceExtensions{};
+    ExtensionList deviceExtensions{};
 
-    const AVQueueFamilyList* avQueueFamilies{nullptr};
+    AVQueueFamilyList avQueueFamilies{};
 
 	constexpr bool IsValid() const {
 		return	physicalDevice != VK_NULL_HANDLE &&
@@ -88,6 +93,13 @@ struct VkContext {
     bool GetDeviceProperties(DeviceProperties& properties) const;
     bool GetSupportedDeviceFeatures(DeviceFeatures& features) const;    
     bool GetRequiredDeviceFeatures(DeviceFeatures& features) const;
+
+    template < typename VkFn >
+    VkFn GetInstanceProcAddr(const char* fnName) const;
+    template < typename VkFn >
+    VkFn GetDeviceProcAddr(const char* fnName) const;
+
+    void InitExtFunctions();
 };
 
 struct DevicePropertiesBase {
@@ -136,6 +148,13 @@ struct DeviceFeaturesBase {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES_KHR,
         .pNext = nullptr,
     };
+#ifdef VK_EXT_pipeline_creation_cache_control
+    // Used by MetaXR simulator
+    VkPhysicalDevicePipelineCreationCacheControlFeaturesEXT pipelineCreationCacheControl = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_CREATION_CACHE_CONTROL_FEATURES_EXT,
+        .pNext = nullptr,
+    };
+#endif
 #if !defined(XR_USE_PLATFORM_ANDROID) && !defined(XR_DISABLE_DECODER_THREAD)
 #ifdef VK_KHR_timeline_semaphore
     VkPhysicalDeviceTimelineSemaphoreFeatures timeline = {
@@ -237,21 +256,31 @@ struct DeviceFeatures final : public DeviceFeaturesBase {
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 inline bool VkContext::IsInstanceExtEnabled(std::string_view extName) const {
-    if (instanceExtensions == nullptr || extName.empty())
+    if (extName.empty())
         return false;
-    return std::find(instanceExtensions->begin(), instanceExtensions->end(), extName) != instanceExtensions->end();
+    return std::find(instanceExtensions.begin(), instanceExtensions.end(), extName) != instanceExtensions.end();
 }
 
 inline bool VkContext::IsDeviceExtEnabled(std::string_view extName) const {
-    if (deviceExtensions == nullptr || extName.empty())
+    if (extName.empty())
         return false;
-    return std::find(deviceExtensions->begin(), deviceExtensions->end(), extName) != deviceExtensions->end();
+    return std::find(deviceExtensions.begin(), deviceExtensions.end(), extName) != deviceExtensions.end();
+}
+
+template <typename VkFn>
+inline VkFn VkContext::GetInstanceProcAddr(const char* fnName) const {
+    return reinterpret_cast<VkFn>(vkGetInstanceProcAddr(instance, fnName));
+}
+
+template <typename VkFn>
+inline VkFn VkContext::GetDeviceProcAddr(const char* fnName) const {
+    return reinterpret_cast<VkFn>(vkGetDeviceProcAddr(device, fnName));
 }
 
 inline bool VkContext::GetDeviceProperties(DeviceProperties& properties) const {
 #if 1
     const auto fpGetPhysicalDeviceProperties2
-        = (PFN_vkGetPhysicalDeviceProperties2KHR)vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR");
+        = GetInstanceProcAddr<PFN_vkGetPhysicalDeviceProperties2KHR>("vkGetPhysicalDeviceProperties2KHR");
     if (fpGetPhysicalDeviceProperties2 == nullptr) {
         return false;
     }
