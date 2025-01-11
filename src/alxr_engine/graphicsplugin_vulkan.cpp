@@ -57,6 +57,18 @@
 #include "foveation.h"
 #include "xr_colorspaces.h"
 
+#if !defined(XR_USE_PLATFORM_ANDROID) && !defined(XR_DISABLE_DECODER_THREAD)
+    #define XR_USE_DECODER_FFMPEG 1
+#else
+    #define XR_USE_DECODER_FFMPEG 0
+#endif
+
+#if XR_USE_DECODER_FFMPEG
+extern "C" {
+#include <libavutil/hwcontext_vulkan.h>
+}
+#endif
+
 namespace {
 
 inline std::string vkResultString(VkResult res) {
@@ -132,10 +144,9 @@ inline VkResult CheckVkResult(VkResult res, const char* originator = nullptr, co
 #define CHECK_VKRESULT(res, cmdStr) CheckVkResult(res, cmdStr, FILE_AND_LINE);
 
 struct MemoryAllocator {
-    void Init(VkPhysicalDevice physicalDevice, VkDevice device) {
-        m_physicalDevice = physicalDevice;
-        m_vkDevice = device;
-        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &m_memProps);
+    void Init(const ALXR::Vk::VkContext& vkCtx) {
+        m_vkCtx = &vkCtx;
+        vkGetPhysicalDeviceMemoryProperties(m_vkCtx->physicalDevice, &m_memProps);
     }
 
     static constexpr const VkFlags defaultFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
@@ -153,7 +164,7 @@ struct MemoryAllocator {
                         .allocationSize = memReqs.size,
                         .memoryTypeIndex = i,
                     };
-                    CHECK_VKCMD(vkAllocateMemory(m_vkDevice, &memAlloc, nullptr, mem));
+                    CHECK_VKCMD(vkAllocateMemory(m_vkCtx->device, &memAlloc, nullptr, mem));
                     return;
                 }
             }
@@ -168,7 +179,7 @@ struct MemoryAllocator {
     ) const
     {
         VkPhysicalDeviceMemoryProperties memProperties;
-        vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
+        vkGetPhysicalDeviceMemoryProperties(m_vkCtx->physicalDevice, &memProperties);
 
         for (std::uint32_t i = 0; i < memProperties.memoryTypeCount; ++i) {
             if ((typeFilter & (1 << i)) &&
@@ -181,8 +192,7 @@ struct MemoryAllocator {
     }
 
    private:
-    VkPhysicalDevice m_physicalDevice{ VK_NULL_HANDLE };
-    VkDevice m_vkDevice{VK_NULL_HANDLE};
+    const ALXR::Vk::VkContext* m_vkCtx{ nullptr };
     VkPhysicalDeviceMemoryProperties m_memProps{};
 };
 
@@ -476,6 +486,18 @@ struct CmdBuffer {
         CHECK_CBSTATE(CmdBufferState::Recording);
         CHECK_VKCMD(vkEndCommandBuffer(buf));
         SetState(CmdBufferState::Executable);
+        return true;
+    }
+
+    bool Exec(VkQueue queue, VkSubmitInfo& submitInfo)
+    {
+        CHECK_CBSTATE(CmdBufferState::Executable);
+
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &buf;
+        CHECK_VKCMD(vkQueueSubmit(queue, 1, &submitInfo, execFence));
+
+        SetState(CmdBufferState::Executing);
         return true;
     }
 
@@ -800,8 +822,9 @@ struct Texture {
     std::vector<std::size_t> totalImageMemSizes{};
     std::vector<VkDeviceMemory> texMemory{};// { VK_NULL_HANDLE };
     VkImage texImage{ VK_NULL_HANDLE };
-    VkDevice m_vkDevice{ VK_NULL_HANDLE };
+    const ALXR::Vk::VkContext* m_vkCtx{nullptr};
     VkImageLayout m_vkLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    bool isOwner{true};
 
     inline bool IsValid() const { return texImage != VK_NULL_HANDLE && totalImageMemSizes.size() > 0; }
 
@@ -809,20 +832,20 @@ struct Texture {
 
     void Clear()
     {
-        if (m_vkDevice != VK_NULL_HANDLE)
+        if (isOwner && m_vkCtx && m_vkCtx->device != VK_NULL_HANDLE)
         {
             if (texImage != VK_NULL_HANDLE) {
-                vkDestroyImage(m_vkDevice, texImage, nullptr);
+                vkDestroyImage(m_vkCtx->device, texImage, nullptr);
             }
             for (auto tm : texMemory) {
                 if (tm != VK_NULL_HANDLE)
-                    vkFreeMemory(m_vkDevice, tm, nullptr);
+                    vkFreeMemory(m_vkCtx->device, tm, nullptr);
             }
         }
         totalImageMemSizes.clear();
         texMemory.clear();        
         texImage = VK_NULL_HANDLE;
-        m_vkDevice = VK_NULL_HANDLE;
+        m_vkCtx = nullptr;
         m_vkLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     }
 
@@ -840,8 +863,9 @@ struct Texture {
         totalImageMemSizes = std::move(other.totalImageMemSizes);
         texMemory = std::move(other.texMemory);
         swap(texImage, other.texImage);
-        swap(m_vkDevice, other.m_vkDevice);
+        swap(m_vkCtx, other.m_vkCtx);
         swap(m_vkLayout, other.m_vkLayout);
+        swap(isOwner, other.isOwner);
     }
 
     Texture& operator=(Texture&& other) noexcept {
@@ -853,20 +877,21 @@ struct Texture {
         totalImageMemSizes = std::move(other.totalImageMemSizes);
         texMemory = std::move(other.texMemory);
         swap(texImage, other.texImage);
-        swap(m_vkDevice, other.m_vkDevice);
+        swap(m_vkCtx, other.m_vkCtx);
         swap(m_vkLayout, other.m_vkLayout);
+        swap(isOwner, other.isOwner);
         return *this;
     }
 
     void Create
     (
-        VkDevice device, MemoryAllocator* memAllocator,
+        const ALXR::Vk::VkContext& vkCtx, MemoryAllocator* memAllocator,
         const std::uint32_t width, const std::uint32_t height, const VkFormat format,
         const VkImageTiling imageTiling = VK_IMAGE_TILING_OPTIMAL,
         const VkImageCreateFlags flags = 0
     )
     {
-        m_vkDevice = device;
+        m_vkCtx = &vkCtx;
 
         const VkExtent2D size = { width, height };
         const VkImageCreateInfo imageInfo { 
@@ -888,20 +913,20 @@ struct Texture {
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .initialLayout = m_vkLayout = VK_IMAGE_LAYOUT_UNDEFINED
         };
-        CHECK_VKCMD(vkCreateImage(device, &imageInfo, nullptr, &texImage));
+        CHECK_VKCMD(vkCreateImage(m_vkCtx->device, &imageInfo, nullptr, &texImage));
 
         VkMemoryRequirements memRequirements{};
-        vkGetImageMemoryRequirements(device, texImage, &memRequirements);
+        vkGetImageMemoryRequirements(m_vkCtx->device, texImage, &memRequirements);
         totalImageMemSizes.push_back(memRequirements.size);
         VkDeviceMemory tm = VK_NULL_HANDLE;
         memAllocator->Allocate(memRequirements, &tm, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         texMemory.push_back(tm);
-        CHECK_VKCMD(vkBindImageMemory(device, texImage, tm, 0));
+        CHECK_VKCMD(vkBindImageMemory(m_vkCtx->device, texImage, tm, 0));
     }
 
     void CreateExported
     (
-        VkDevice device, MemoryAllocator* memAllocator,
+        const ALXR::Vk::VkContext& vkCtx, MemoryAllocator* memAllocator,
         const std::uint32_t width, const std::uint32_t height, const VkFormat format,
         const VkImageTiling imageTiling = VK_IMAGE_TILING_OPTIMAL,
         const VkImageCreateFlags flags = 0,
@@ -909,8 +934,8 @@ struct Texture {
         const VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     )
     {
-        m_vkDevice = device;
-        assert(m_vkDevice != VK_NULL_HANDLE);
+        m_vkCtx = &vkCtx;
+        assert(m_vkCtx != nullptr);
 
         constexpr const VkExternalMemoryImageCreateInfo vkExternalMemImageCreateInfo {
             .sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO,
@@ -941,13 +966,13 @@ struct Texture {
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .initialLayout = m_vkLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         };
-        CHECK_VKCMD(vkCreateImage(device, &imageInfo, nullptr, &texImage));
+        CHECK_VKCMD(vkCreateImage(m_vkCtx->device, &imageInfo, nullptr, &texImage));
 
         const bool disjointed = (flags & VK_IMAGE_CREATE_DISJOINT_BIT) != 0;
         if (!disjointed)
         {
             VkMemoryRequirements memRequirements{};
-            vkGetImageMemoryRequirements(device, texImage, &memRequirements);
+            vkGetImageMemoryRequirements(m_vkCtx->device, texImage, &memRequirements);
 
 #ifdef _WIN64
             const WindowsSecurityAttributes winSecurityAttributes{};
@@ -972,12 +997,12 @@ struct Texture {
 #endif
             };
             VkMemoryRequirements vkMemoryRequirements = {};
-            vkGetImageMemoryRequirements(device, texImage, &vkMemoryRequirements);
+            vkGetImageMemoryRequirements(m_vkCtx->device, texImage, &vkMemoryRequirements);
             totalImageMemSizes.push_back(vkMemoryRequirements.size);
 
             VkDeviceMemory tm = VK_NULL_HANDLE;
             memAllocator->Allocate(memRequirements, &tm, properties, &vulkanExportMemoryAllocateInfoKHR);
-            CHECK_VKCMD(vkBindImageMemory(device, texImage, tm, 0));
+            CHECK_VKCMD(vkBindImageMemory(m_vkCtx->device, texImage, tm, 0));
 
             texMemory.push_back(tm);
         }
@@ -1000,7 +1025,7 @@ struct Texture {
                     .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
                     .pNext = nullptr,
                 };
-                vkGetImageMemoryRequirements2(device, &imageMemoryRequirementsInfo2, &memoryRequirements2);
+                vkGetImageMemoryRequirements2(m_vkCtx->device, &imageMemoryRequirementsInfo2, &memoryRequirements2);
 
 #ifdef _WIN64
                 const WindowsSecurityAttributes winSecurityAttributes{};
@@ -1072,7 +1097,7 @@ struct Texture {
                     .memoryOffset = 0
                 },
             };
-            CHECK_VKCMD(vkBindImageMemory2(device, (std::uint32_t)bindImageMemoryInfo.size(), bindImageMemoryInfo.data()));
+            CHECK_VKCMD(vkBindImageMemory2(m_vkCtx->device, (std::uint32_t)bindImageMemoryInfo.size(), bindImageMemoryInfo.data()));
         }
     }
 
@@ -1080,8 +1105,7 @@ struct Texture {
     using AHBufferFormatProperties = VkAndroidHardwareBufferFormatPropertiesANDROID;
     void CreateAHardwareBufferImported
     (
-        VkDevice vkDevice,
-        VkInstance vkinstance,
+        const ALXR::Vk::VkContext& vkCtx,
         MemoryAllocator* memAllocator,
         AHardwareBuffer* buffer,
         const std::uint32_t width,
@@ -1090,7 +1114,7 @@ struct Texture {
         AHBufferFormatProperties& formatInfo
     )
     {
-        m_vkDevice = vkDevice;
+        m_vkCtx = &vkCtx;
 
         formatInfo = {
             .sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID,
@@ -1103,8 +1127,8 @@ struct Texture {
             .pNext = &formatInfo
         };        
         const auto vkGetAndroidHardwareBufferPropertiesANDROID =
-            (PFN_vkGetAndroidHardwareBufferPropertiesANDROID)vkGetInstanceProcAddr(
-                vkinstance, "vkGetAndroidHardwareBufferPropertiesANDROID");
+            m_vkCtx->GetInstanceProcAddr<PFN_vkGetAndroidHardwareBufferPropertiesANDROID>("vkGetAndroidHardwareBufferPropertiesANDROID");
+
         CHECK(vkGetAndroidHardwareBufferPropertiesANDROID != nullptr);
         vkGetAndroidHardwareBufferPropertiesANDROID(vkDevice, buffer, &properties);
 
@@ -1136,7 +1160,7 @@ struct Texture {
             .pQueueFamilyIndices = nullptr,
             .initialLayout = m_vkLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         };
-        CHECK_VKCMD(vkCreateImage(vkDevice, &imageInfo, nullptr, &texImage));
+        CHECK_VKCMD(vkCreateImage(m_vkCtx->device, &imageInfo, nullptr, &texImage));
 
         const VkImportAndroidHardwareBufferInfoANDROID androidHardwareBufferInfo {
             .sType = VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID,
@@ -1166,14 +1190,13 @@ struct Texture {
             .memory = tm,
             .memoryOffset = 0,
         };
-        CHECK_VKCMD(vkBindImageMemory2(vkDevice, 1, &bindImageInfo));
+        CHECK_VKCMD(vkBindImageMemory2(m_vkCtx->device, 1, &bindImageInfo));
     }
 #else
     struct AHBufferFormatProperties;
     void CreateAHardwareBufferImported
     (
-        VkDevice /*vkDevice*/,
-        VkInstance /*vkinstance*/,
+        const ALXR::Vk::VkContext& /*vkCtx*/,
         MemoryAllocator* /*memAllocator*/,
         struct AHardwareBuffer* /*buffer*/,
         const std::uint32_t /*width*/,
@@ -1186,7 +1209,7 @@ struct Texture {
 #ifdef XR_USE_PLATFORM_WIN32
     void CreateImportedD3D11Texture
     (
-        VkPhysicalDevice phyDevice, VkDevice device, MemoryAllocator* memAllocator,
+        const ALXR::Vk::VkContext& vkCtx, MemoryAllocator* memAllocator,
         const HANDLE d3d11Tex, const std::uint32_t width, const std::uint32_t height, const VkFormat format,
         const VkImageTiling imageTiling = VK_IMAGE_TILING_OPTIMAL,
         const VkImageCreateFlags flags = 0,
@@ -1194,7 +1217,7 @@ struct Texture {
         const VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     )
     {
-        m_vkDevice = device;
+        m_vkCtx = &vkCtx;
 
         constexpr const VkPhysicalDeviceExternalImageFormatInfo physicalDeviceExternalImageFormatInfo {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO,
@@ -1218,7 +1241,7 @@ struct Texture {
             .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
             .pNext = &externalImageFormatProperties
         };
-        CHECK_VKCMD(vkGetPhysicalDeviceImageFormatProperties2(phyDevice, &physicalDeviceImageFormatInfo2, &imageFormatProperties2));
+        CHECK_VKCMD(vkGetPhysicalDeviceImageFormatProperties2(m_vkCtx->physicalDevice, &physicalDeviceImageFormatInfo2, &imageFormatProperties2));
         assert(externalImageFormatProperties.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_DEDICATED_ONLY_BIT);
         assert(externalImageFormatProperties.externalMemoryProperties.externalMemoryFeatures & VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT);
         assert(externalImageFormatProperties.externalMemoryProperties.compatibleHandleTypes & VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT);
@@ -1246,7 +1269,7 @@ struct Texture {
             .pQueueFamilyIndices = nullptr,
             .initialLayout = m_vkLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         };
-        CHECK_VKCMD(vkCreateImage(device, &ImageCreateInfo, nullptr, &texImage));
+        CHECK_VKCMD(vkCreateImage(m_vkCtx->device, &ImageCreateInfo, nullptr, &texImage));
 
         const bool disjointed = (flags & VK_IMAGE_CREATE_DISJOINT_BIT) != 0;
 
@@ -1266,7 +1289,7 @@ struct Texture {
                 .image = texImage
             };
             // WARN: Memory access violation unless validation instance layer is enabled, otherwise success but...
-            vkGetImageMemoryRequirements2(device, &ImageMemoryRequirementsInfo2, &MemoryRequirements2);
+            vkGetImageMemoryRequirements2(m_vkCtx->device, &ImageMemoryRequirementsInfo2, &MemoryRequirements2);
             //       ... if we happen to be here, MemoryRequirements2 is empty
             VkMemoryRequirements& MemoryRequirements = MemoryRequirements2.memoryRequirements;
 
@@ -1294,7 +1317,7 @@ struct Texture {
                 .memory = ImageMemory,
                 .memoryOffset = 0
             };
-            CHECK_VKCMD(vkBindImageMemory2(device, 1, &bindImageMemoryInfo));
+            CHECK_VKCMD(vkBindImageMemory2(m_vkCtx->device, 1, &bindImageMemoryInfo));
 
             texMemory.push_back(ImageMemory);
             totalImageMemSizes.push_back(MemoryRequirements.size);
@@ -1321,7 +1344,7 @@ struct Texture {
                     .sType = VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2,
                     .pNext = &MemoryDedicatedRequirements
                 };
-                vkGetImageMemoryRequirements2(device, &ImageMemoryRequirementsInfo2, &MemoryRequirements2);
+                vkGetImageMemoryRequirements2(m_vkCtx->device, &ImageMemoryRequirementsInfo2, &MemoryRequirements2);
                 VkMemoryRequirements& MemoryRequirements = MemoryRequirements2.memoryRequirements;
                 totalImageMemSize = MemoryRequirements.size;
 
@@ -1385,23 +1408,74 @@ struct Texture {
                     .memoryOffset = 0
                 },
             };
-            CHECK_VKCMD(vkBindImageMemory2(device, (std::uint32_t)bindImageMemoryInfo.size(), bindImageMemoryInfo.data()));
+            CHECK_VKCMD(vkBindImageMemory2(m_vkCtx->device, (std::uint32_t)bindImageMemoryInfo.size(), bindImageMemoryInfo.data()));
         }
     }
 #endif
 
-    void TransitionLayout(CmdBuffer& cmdBuffer, const VkImageLayout newLayout)
+    void TransitionLayoutV1(CmdBuffer& cmdBuffer, const VkImageLayout newLayout,
+                            const uint32_t srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                            const uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED)
     {
-        if (newLayout == m_vkLayout)
-            return;
-
         const auto oldLayout = m_vkLayout;
-        VkImageMemoryBarrier barrier {
+        VkAccessFlags srcAccessMask = VK_ACCESS_NONE;
+        VkAccessFlags dstAccessMask = VK_ACCESS_NONE;
+        VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_NONE;
+        VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_NONE;
+
+        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+            newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            dstStageMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            srcStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            dstStageMask = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        }
+        else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+            newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            srcStageMask  = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            dstStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        }
+        else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+            newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            srcStageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dstStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        }
+        else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
+            newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            srcStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            dstStageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        }
+        if (oldLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR &&
+            newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            srcAccessMask = (VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT);
+            dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            srcStageMask  = (VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT);
+            dstStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        }
+        else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
+            newLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR) {
+            srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            dstAccessMask = (VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT);
+            srcStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            dstStageMask  = (VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT);
+        }
+        else {
+            Log::Write(Log::Level::Warning, Fmt("unsupported layout transition, old layout: %u target layout: %u, falling back to src/dst VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT", 
+                oldLayout, newLayout));
+        }
+
+        const VkImageMemoryBarrier imageMemoryBarrier = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            .srcAccessMask = srcAccessMask,
+            .dstAccessMask = dstAccessMask,
             .oldLayout = oldLayout,
             .newLayout = newLayout,
-            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            .srcQueueFamilyIndex = srcQueueFamilyIndex,
+            .dstQueueFamilyIndex = dstQueueFamilyIndex,
             .image = texImage,
             .subresourceRange = {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -1410,54 +1484,111 @@ struct Texture {
                 .baseArrayLayer = 0,
                 .layerCount = 1
             }
-        };        
-        VkPipelineStageFlags sourceStage = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-        VkPipelineStageFlags destinationStage = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-        if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
-            newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        }
-        else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
-            newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-            sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        }
-        else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-            newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-            sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        }
-        else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
-            newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-            barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-            sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        }
-        else {
-            //throw std::invalid_argument("unsupported layout transition!");
-            Log::Write(Log::Level::Warning, Fmt("unsupported layout transition, old layout: %u target layout: %u, falling back to src/dst VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT", 
-                oldLayout, newLayout));
-        }
-
+        };
         vkCmdPipelineBarrier
         (
-            cmdBuffer.buf, sourceStage, destinationStage, 0, 0,
-            nullptr, 0, nullptr, 1, &barrier
+            cmdBuffer.buf, srcStageMask, dstStageMask, 0, 0,
+            nullptr, 0, nullptr, 1, &imageMemoryBarrier
         );
 
         m_vkLayout = newLayout;
+    }
+
+    void TransitionLayoutV2(CmdBuffer& cmdBuffer, const VkImageLayout newLayout,
+        const uint32_t srcQueueFamilyIndex,
+        const uint32_t dstQueueFamilyIndex)
+    {
+#ifdef VK_KHR_synchronization2
+        VkAccessFlags2 srcAccessMask = VK_ACCESS_2_NONE_KHR;
+        VkAccessFlags2 dstAccessMask = VK_ACCESS_2_NONE_KHR;
+        VkPipelineStageFlags2 srcStageMask = VK_PIPELINE_STAGE_2_NONE_KHR;
+        VkPipelineStageFlags2 dstStageMask = VK_PIPELINE_STAGE_2_NONE_KHR;
+
+        if (m_vkLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+            newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR;
+            srcStageMask  = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT_KHR;
+            dstStageMask  = VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR;
+        }
+        else if (m_vkLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+            newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT_KHR;
+            srcStageMask  = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT_KHR;
+            dstStageMask  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT_KHR;
+        }
+        else if (m_vkLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+            newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR;
+            dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT_KHR;
+            srcStageMask  = VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR;
+            dstStageMask  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT_KHR;
+        }
+        else if (m_vkLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
+            newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT_KHR;
+            dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR;
+            srcStageMask  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT_KHR;
+            dstStageMask  = VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR;
+        }
+        else if (m_vkLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR &&
+            newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            srcAccessMask = (VK_ACCESS_2_SHADER_WRITE_BIT_KHR | VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR); // | VK_ACCESS_2_VIDEO_DECODE_WRITE_BIT_KHR);
+            dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT_KHR;
+            srcStageMask = (VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT_KHR | VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR); // | VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR);
+            dstStageMask  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT_KHR;
+        }
+        else if (m_vkLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
+            newLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR) {
+            srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT_KHR;
+            dstAccessMask = (VK_ACCESS_2_SHADER_WRITE_BIT_KHR | VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR); // | VK_ACCESS_2_VIDEO_DECODE_WRITE_BIT_KHR);
+            srcStageMask  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT_KHR;
+            dstStageMask = (VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT_KHR | VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR); //| VK_PIPELINE_STAGE_2_VIDEO_DECODE_BIT_KHR);
+        }
+        else {
+            Log::Write(Log::Level::Warning, Fmt("unsupported layout transition, old layout: %u target layout: %u, falling back to src/dst VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT",
+                m_vkLayout, newLayout));
+        }
+
+        const VkImageMemoryBarrier2KHR imageMemoryBarrier = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR,
+            .srcStageMask  = srcStageMask,
+            .srcAccessMask = srcAccessMask,
+            .dstStageMask  = dstStageMask,
+            .dstAccessMask = dstAccessMask,
+            .oldLayout = m_vkLayout,
+            .newLayout = newLayout,
+            .srcQueueFamilyIndex = srcQueueFamilyIndex,
+            .dstQueueFamilyIndex = dstQueueFamilyIndex,
+            .image = texImage,
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            },
+        };
+        const VkDependencyInfoKHR dependencyInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
+            .imageMemoryBarrierCount = 1,
+            .pImageMemoryBarriers = &imageMemoryBarrier,
+        };
+        m_vkCtx->vkCmdPipelineBarrier2KHR(cmdBuffer.buf, &dependencyInfo);
+        m_vkLayout = newLayout;
+#endif
+    }
+
+    void TransitionLayout(CmdBuffer& cmdBuffer, const VkImageLayout newLayout,
+        const uint32_t srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        const uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED) {
+        if (newLayout == m_vkLayout)
+            return;
+#ifdef VK_KHR_synchronization2
+        if (m_vkCtx->vkCmdPipelineBarrier2KHR)
+            TransitionLayoutV2(cmdBuffer, newLayout, srcQueueFamilyIndex, dstQueueFamilyIndex);
+        else
+#endif
+            TransitionLayoutV1(cmdBuffer, newLayout, srcQueueFamilyIndex, dstQueueFamilyIndex);
     }
 };
 
@@ -2416,10 +2547,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
     {
         CHECK(m_vkCtx.physicalDevice != VK_NULL_HANDLE)
 #if 1
-        PFN_vkGetPhysicalDeviceProperties2 fpGetPhysicalDeviceProperties2;
-        fpGetPhysicalDeviceProperties2 =
-            (PFN_vkGetPhysicalDeviceProperties2)vkGetInstanceProcAddr(
-                m_vkCtx.instance, "vkGetPhysicalDeviceProperties2");
+        const auto fpGetPhysicalDeviceProperties2 = m_vkCtx.GetInstanceProcAddr<PFN_vkGetPhysicalDeviceProperties2>("vkGetPhysicalDeviceProperties2");
         if (fpGetPhysicalDeviceProperties2 == NULL) {
             throw std::runtime_error(
                 "Vulkan: Proc address for \"vkGetPhysicalDeviceProperties2KHR\" not "
@@ -2716,13 +2844,6 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         // for API buffer interop instead of the current method of bespoke interop code)
         // 
 
-#if 0
-        while (!::IsDebuggerPresent()) {
-            ::Sleep(100);
-        }
-        __debugbreak();
-#endif
-
         const auto getQueueFamilyProps = [&queueFamilyProps](const std::uint32_t queueFamilyIndex) -> const VkQueueFamilyProperties& {
             return queueFamilyProps[queueFamilyIndex].queueFamilyProperties;
         };
@@ -2910,14 +3031,20 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME
         };
 
-        if (!m_noMultiview && IsDeviceExtSupported(VK_KHR_MULTIVIEW_EXTENSION_NAME)) {
-            m_vkCtx.deviceExtensions.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
+        std::vector<const char*> optionalDeviceExtensions = {
+            VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
+            VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME, // used by MetaXR simulator.
+        };
+        if (!m_noMultiview) {
+            optionalDeviceExtensions.push_back(VK_KHR_MULTIVIEW_EXTENSION_NAME);
         }
-
-        for (const char* const extName : AVVulkanDeviceExts) {
-            if (IsDeviceExtSupported(extName)) {
+        for (const char* const extName : optionalDeviceExtensions) {
+            if (IsDeviceExtSupported(extName))
                 m_vkCtx.deviceExtensions.push_back(extName);
-            }
+        }
+        for (const char* const extName : AVVulkanDeviceExts) {
+            if (IsDeviceExtSupported(extName))
+                m_vkCtx.deviceExtensions.push_back(extName);
         }
 
         ALXR::Vk::DeviceProperties deviceProperties = {};
@@ -2977,6 +3104,8 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         };
         CHECK_XRCMD(CreateVulkanDeviceKHR(instance, &deviceCreateInfo, &m_vkCtx.device, &err));
         CHECK_VKCMD(err);
+        
+        m_vkCtx.InitExtFunctions();
 
         CHECK(graphicsQueueFamilyOpt.has_value() && queueFamilyUsedCounts[graphicsQueueFamilyOpt->queueFamilyIndex] > 0);
         CHECK(cpyTransferQueueFamilyOpt.has_value() && queueFamilyUsedCounts[cpyTransferQueueFamilyOpt->queueFamilyIndex] > 0);
@@ -3032,6 +3161,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             assert(transferFamilyQueueOpt.has_value());
 
             m_vkCtx.avQueueFamilies.queueFamilyIndex = {
+                .graphics = graphicsQueueFamilyOpt->queueFamilyIndex,
                 .decode = decodeFamilyQueueOpt->queueFamilyIndex,
                 .compute = computeFamilyQueueOpt->queueFamilyIndex,
                 .transfer = transferFamilyQueueOpt->queueFamilyIndex,
@@ -3041,7 +3171,8 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             for (const auto queueFamilyIdx : {
                     decodeFamilyQueueOpt->queueFamilyIndex,
                     computeFamilyQueueOpt->queueFamilyIndex,
-                    transferFamilyQueueOpt->queueFamilyIndex
+                    transferFamilyQueueOpt->queueFamilyIndex,
+                    graphicsQueueFamilyOpt->queueFamilyIndex,
                 }) {
                 if (queueFamilyIdx >= queueFamilyUsedCounts.size())
                     continue;
@@ -3059,7 +3190,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             }
         }
 
-        m_memAllocator.Init(m_vkCtx.physicalDevice, m_vkCtx.device);
+        m_memAllocator.Init(m_vkCtx);
 
         InitializeResources();
 
@@ -3379,34 +3510,41 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         return *swapchainContextPtr;
     }
 
-    template < typename RenderFunc >
-    inline void RenderViewImpl(RenderFunc&& renderFun) {
-
+    inline void RenderBegin() {
         if (m_cmdBufferWaitNextFrame) {
             m_cmdBuffer.Wait();
         }
         m_cmdBuffer.Reset();
-#ifdef XR_USE_PLATFORM_ANDROID
+#if 1 //def XR_USE_PLATFORM_ANDROID
         m_videoTextures[VidTextureIndex::DeferredDelete].Clear();
 #endif
         m_cmdBuffer.Begin();
+    }
 
-        renderFun();
-
+    inline void RenderEnd(VkSubmitInfo& submitInfo) {
         m_cmdBuffer.End();
-
         {
-            std::scoped_lock lock{QueueMutex(m_graphicsQueue)};
-#if 1 //#ifdef XR_USE_PLATFORM_ANDROID
-            m_cmdBuffer.Exec(m_graphicsQueue.queue);
-#else
-            m_cmdBuffer.Exec<1, 1>(m_graphicsQueue.queue, { &m_texRendereComplete }, { &m_texCopy }, { VK_PIPELINE_STAGE_ALL_COMMANDS_BIT });
-#endif
+            std::scoped_lock lock{ QueueMutex(m_graphicsQueue) };
+            m_cmdBuffer.Exec(m_graphicsQueue.queue, submitInfo);
         }
-
         if (!m_cmdBufferWaitNextFrame) {
             m_cmdBuffer.Wait();
         }
+    }
+
+    inline void RenderEnd() {
+        VkSubmitInfo submitInfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext = nullptr,
+        };
+        RenderEnd(submitInfo);
+    }
+
+    template < typename RenderFunc >
+    inline void RenderViewImpl(RenderFunc&& renderFun) {
+        RenderBegin();
+        renderFun();
+        RenderEnd();
     }
 
     using ClearValueT = std::array<const VkClearValue, 2>;
@@ -3825,7 +3963,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
     void ClearImageDescriptorSets()
     {
-#ifdef XR_USE_PLATFORM_ANDROID
+#if 1 //def XR_USE_PLATFORM_ANDROID
         m_DescriptorSetSlot = 0;
         m_descriptorSets.clear();
 #endif
@@ -3860,7 +3998,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         //
         constexpr const std::uint32_t MaxCombinedImageSamplerYcbcrDescriptorCount = 4;
 
-#ifdef XR_USE_PLATFORM_ANDROID
+#if 1 //def XR_USE_PLATFORM_ANDROID
         constexpr const std::uint32_t MaxDescriptorSets = 12;
 #else
         const std::uint32_t MaxDescriptorSets = static_cast<std::uint32_t>(m_videoTextures.size());
@@ -3884,7 +4022,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         CHECK_VKCMD(vkCreateDescriptorPool(m_vkCtx.device, &poolInfo, nullptr, &m_descriptorPool));
         CHECK(m_descriptorPool != VK_NULL_HANDLE);
 
-#ifdef XR_USE_PLATFORM_ANDROID
+#if 1// def XR_USE_PLATFORM_ANDROID
         CHECK(m_videoStreamLayout.descriptorSetLayout != VK_NULL_HANDLE);
         m_DescriptorSetSlot = 0;
         m_descriptorSets.clear();
@@ -4103,8 +4241,11 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         m_blendModeAlpha = alpha;
     }
 
-
+#if XR_USE_DECODER_FFMPEG
+    constexpr static const std::size_t VideoQueueSize = 5;
+#else
     constexpr static const std::size_t VideoQueueSize = 2;
+#endif
 
     virtual void ClearVideoTextures() override
     {
@@ -4116,7 +4257,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         
         //m_texRendereComplete.WaitForGpu();
         m_videoTextures = { VideoTexture {}, VideoTexture {} };
-#ifdef XR_USE_PLATFORM_ANDROID
+#if 1 //def XR_USE_PLATFORM_ANDROID
         m_videoTexQueue = VideoTextureQueue(VideoQueueSize);
 #else
         m_lastTexIndex = std::size_t(-1);
@@ -4149,7 +4290,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             );
             vidTex.texture.Create
             (
-                m_vkCtx.device, &m_memAllocator,
+                m_vkCtx, &m_memAllocator,
                 static_cast<std::uint32_t>(info.width), static_cast<std::uint32_t>(info.height), pixelFmt,
                 VK_IMAGE_TILING_OPTIMAL
             );
@@ -4195,7 +4336,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             vidTex.format = pixelFmt;
             vidTex.texture.Create
             (
-                m_vkDevice, &m_memAllocator,
+                m_vkCtx, &m_memAllocator,
                 static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height),
                 pixelFmt, VK_IMAGE_TILING_OPTIMAL, 0
             );
@@ -4287,7 +4428,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             vidTex.format = info.pixelFmt;
             vidTex.texture.CreateImportedD3D11Texture
             (
-                m_vkPhysicalDevice, m_vkDevice, &m_memAllocator,
+                m_vkCtx, &m_memAllocator,
                 vidTex.sharedHandle, static_cast<std::uint32_t>(info.width), static_cast<std::uint32_t>(info.height), pixelFmt,
                 VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_CREATE_DISJOINT_BIT
             );
@@ -4452,7 +4593,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
     virtual void BeginVideoView() override
     {
-#ifdef XR_USE_PLATFORM_ANDROID
+#if 1 // def XR_USE_PLATFORM_ANDROID
         VideoTexture newVideoTex{};
 
         if (m_noFrameSkip) {
@@ -4491,7 +4632,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
     }
     
     virtual std::uint64_t GetVideoFrameIndex() const override {
-#ifdef XR_USE_PLATFORM_ANDROID
+#if 1 // def XR_USE_PLATFORM_ANDROID
         return m_videoTextures[VidTextureIndex::Current].frameIndex;
 #else
         return textureIdx == std::uint64_t(-1) ?
@@ -4594,7 +4735,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         Texture::AHBufferFormatProperties formatProperties;
         newVideoTex.texture.CreateAHardwareBufferImported
         (
-            m_vkDevice, m_vkInstance, &m_memAllocator,
+            m_vkCtx, &m_memAllocator,
             hwBuff, newVideoTex.width, newVideoTex.height,
             formatProperties
         );
@@ -4683,6 +4824,96 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
     }
 #endif
 
+#if XR_USE_DECODER_FFMPEG
+    virtual void UpdateVideoTextureVk(const YUVBuffer& yuvBuffer) override
+    {
+        if (yuvBuffer.frameIndex == std::uint64_t(-1)) {
+            return;
+        }
+
+        VideoTexture newVideoTex{};
+        newVideoTex.avFrame = yuvBuffer.avFrame;
+        newVideoTex.frameIndex = yuvBuffer.frameIndex;
+        newVideoTex.width = yuvBuffer.luma.pitch;
+        newVideoTex.height = yuvBuffer.luma.height;
+
+        auto avvkFrame = (AVVkFrame*)newVideoTex.avFrame->data[0];
+
+        auto& texture = newVideoTex.texture;
+        texture.isOwner = false;
+        texture.m_vkCtx = &m_vkCtx;
+        texture.texImage = avvkFrame->img[0];
+        texture.texMemory.push_back(avvkFrame->mem[0]);
+        texture.totalImageMemSizes.push_back(avvkFrame->size[0]);
+        texture.m_vkLayout = avvkFrame->layout[0];
+
+        const VkFormat format = MapFormat(yuvBuffer.format);
+
+        if (m_videoStreamLayout.IsNull()) {
+            CreateVideoStreamPipeline(format, ALXR::YcbcrModel::BT709, ALXR::YcbcrRange::ITU_Full);
+        }
+        CHECK(!m_videoStreamLayout.IsNull() && m_videoStreamLayout.ycbcrSamplerConversion != VK_NULL_HANDLE);
+
+        const VkSamplerYcbcrConversionInfo ycbcrConverInfo{
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO,
+            .pNext = nullptr,
+            .conversion = m_videoStreamLayout.ycbcrSamplerConversion,
+        };
+        const VkImageViewCreateInfo viewInfo{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = &ycbcrConverInfo,
+            .image = newVideoTex.texture.texImage,
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = format,
+            .components = {
+                .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .a = VK_COMPONENT_SWIZZLE_IDENTITY
+            },
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+        CHECK_VKCMD(vkCreateImageView(m_vkCtx.device, &viewInfo, nullptr, &newVideoTex.imageView));
+
+        newVideoTex.descriptorSet = m_descriptorSets[m_DescriptorSetSlot];
+        assert(newVideoTex.descriptorSet != VK_NULL_HANDLE);
+        m_DescriptorSetSlot = (m_DescriptorSetSlot + 1) % m_descriptorSets.size();
+
+        const VkDescriptorImageInfo imageInfo = {
+            .sampler = m_videoStreamLayout.textureSampler,
+            .imageView = newVideoTex.imageView,
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        };
+        const std::array<VkWriteDescriptorSet, 1> descriptorWrites{
+            VkWriteDescriptorSet {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .pNext = nullptr,
+                .dstSet = newVideoTex.descriptorSet,
+                .dstBinding = 0,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .pImageInfo = &imageInfo,
+                .pBufferInfo = nullptr,
+                .pTexelBufferView = nullptr
+            }
+        };
+        vkUpdateDescriptorSets(m_vkCtx.device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+
+        using namespace std::literals::chrono_literals;
+        constexpr static const auto QueueTextureWaitTime = 100ms;
+        if (!m_videoTexQueue.wait_enqueue_timed(std::move(newVideoTex), QueueTextureWaitTime)) {
+            Log::Write(Log::Level::Warning, Fmt("Waiting to queue decoded video frame (pts: %llu) timed-out after %lld seconds, this frame will be ignored", yuvBuffer.frameIndex, QueueTextureWaitTime.count()));
+        }
+    }
+#endif
+
     virtual void UpdateVideoTextureD3D11VA(const YUVBuffer& yuvBuffer) override
     {
 #if !defined(ALXR_ENABLE_VULKAN_D3D11VA_BUFFER_INTEROP)
@@ -4752,45 +4983,74 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         std::array<const XrSwapchainImageBaseHeader*, 1> swapchainImages = { swapchainImage };
         RenderVisibilityMaskPass(swapchainImages, layerViews);
 
-        RenderViewImpl([&, this]() {
-            
-            std::uint32_t imageIndex{ 0 };
-            auto& swapchainContext = GetSwapchainImageContext(swapchainImage, imageIndex);
-            swapchainContext.depthBuffer.TransitionLayout(m_cmdBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+        RenderBegin();
 
-            const auto& clearValues = VideoClearValues[ClearValueIndex(newMode)];
-            VkRenderPassBeginInfo renderPassBeginInfo{
-                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-                .pNext = nullptr,
-                .clearValueCount = (uint32_t)clearValues.size(),
-                .pClearValues = clearValues.data()
-            };
-            // Bind and clear eye render target
-            swapchainContext.BindRenderTarget(imageIndex, /*out*/ renderPassBeginInfo);
+        std::uint32_t imageIndex{ 0 };
+        auto& swapchainContext = GetSwapchainImageContext(swapchainImage, imageIndex);
+        swapchainContext.depthBuffer.TransitionLayout(m_cmdBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-#ifdef XR_USE_PLATFORM_ANDROID
-            constexpr const std::size_t VidTextureIndex = VidTextureIndex::Current;
+        const auto& clearValues = VideoClearValues[ClearValueIndex(newMode)];
+        VkRenderPassBeginInfo renderPassBeginInfo{
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .pNext = nullptr,
+            .clearValueCount = (uint32_t)clearValues.size(),
+            .pClearValues = clearValues.data()
+        };
+        // Bind and clear eye render target
+        swapchainContext.BindRenderTarget(imageIndex, /*out*/ renderPassBeginInfo);
+
+        auto& currentTexture = m_videoTextures[VidTextureIndex::Current];
+        if (currentTexture.texture.texImage == VK_NULL_HANDLE) {
+            RenderEnd();
+            return;
+        }
+
+        LockAVVkFrame(currentTexture);
+        currentTexture.TransitionLayout(
+            m_cmdBuffer,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
+        
+        vkCmdBeginRenderPass(m_cmdBuffer.buf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+        vkCmdBindPipeline(m_cmdBuffer.buf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_videoStreamPipelines[static_cast<std::size_t>(newMode)].pipe);
+
+        assert(currentTexture.descriptorSet != VK_NULL_HANDLE);
+        vkCmdBindDescriptorSets(m_cmdBuffer.buf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_videoStreamLayout.layout, 0, 1, &currentTexture.descriptorSet, 0, nullptr);
+
+        vkCmdDraw(m_cmdBuffer.buf, 3, 1, 0, 0);
+
+        vkCmdEndRenderPass(m_cmdBuffer.buf);
+
+#ifndef XR_USE_PLATFORM_ANDROID
+        constexpr const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        auto frameSempahore = currentTexture.TimelineSemaphore();
+        auto frameWaitSemValuePtr = currentTexture.SemaphoreValue();
+        auto frameSignalSemValue = *frameWaitSemValuePtr + 1;
+
+        VkTimelineSemaphoreSubmitInfoKHR timelineInfo = {
+            .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO_KHR,
+            .pNext = nullptr,
+            .waitSemaphoreValueCount = 1,
+            .pWaitSemaphoreValues = frameWaitSemValuePtr,
+            .signalSemaphoreValueCount = 1,
+            .pSignalSemaphoreValues = &frameSignalSemValue,
+        };
+        VkSubmitInfo submitInfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext = &timelineInfo,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &frameSempahore,
+            .pWaitDstStageMask = &waitStageMask,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = &frameSempahore,
+        };
+        RenderEnd(submitInfo);
+        *frameWaitSemValuePtr = frameSignalSemValue;
 #else
-            if (textureIdx == std::size_t(-1))
-                return;
-            const std::size_t VidTextureIndex = textureIdx;
+        RenderEnd();
 #endif
-            auto& currentTexture = m_videoTextures[VidTextureIndex];
-            if (currentTexture.texture.texImage == VK_NULL_HANDLE)
-                return;
-            currentTexture.texture.TransitionLayout(m_cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-            vkCmdBeginRenderPass(m_cmdBuffer.buf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-            vkCmdBindPipeline(m_cmdBuffer.buf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_videoStreamPipelines[static_cast<std::size_t>(newMode)].pipe);
-
-            assert(currentTexture.descriptorSet != VK_NULL_HANDLE);
-            vkCmdBindDescriptorSets(m_cmdBuffer.buf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_videoStreamLayout.layout, 0, 1, &currentTexture.descriptorSet, 0, nullptr);
-
-            vkCmdDraw(m_cmdBuffer.buf, 3, 1, 0, 0);
-
-            vkCmdEndRenderPass(m_cmdBuffer.buf);
-        });
+        UnlockAVVkFrame(currentTexture);
     }
 
     virtual void RenderVideoView
@@ -4803,48 +5063,77 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
     {
         RenderVisibilityMaskPass(std::span{ swapchainImages }, layerViews);
 
-        RenderViewImpl([&, this]() {
-            for (std::size_t viewID = 0; viewID < swapchainImages.size(); ++viewID) {
-                
-                std::uint32_t imageIndex{ 0 };
-                auto& swapchainContext = GetSwapchainImageContext(swapchainImages[viewID], imageIndex);
-                swapchainContext.depthBuffer.TransitionLayout(m_cmdBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+        RenderBegin();
 
-                const auto& clearValues = VideoClearValues[ClearValueIndex(mode)];
-                VkRenderPassBeginInfo renderPassBeginInfo{
-                    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-                    .pNext = nullptr,
-                    .clearValueCount = (uint32_t)clearValues.size(),
-                    .pClearValues = clearValues.data()
-                };
-                // Bind and clear eye render target
-                swapchainContext.BindRenderTarget(imageIndex, /*out*/ renderPassBeginInfo);
+        auto& currentTexture = m_videoTextures[VidTextureIndex::Current];
+        if (currentTexture.texture.texImage == VK_NULL_HANDLE) {
+            RenderEnd();
+            return;
+        }
 
-    #ifdef XR_USE_PLATFORM_ANDROID
-                constexpr const std::size_t VidTextureIndex = VidTextureIndex::Current;
-    #else
-                if (textureIdx == std::size_t(-1))
-                    return;
-                const std::size_t VidTextureIndex = textureIdx;
-    #endif
-                auto& currentTexture = m_videoTextures[VidTextureIndex];
-                if (currentTexture.texture.texImage == VK_NULL_HANDLE)
-                    return;
-                currentTexture.texture.TransitionLayout(m_cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        LockAVVkFrame(currentTexture);
+        currentTexture.TransitionLayout(
+            m_cmdBuffer,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        );
 
-                vkCmdBeginRenderPass(m_cmdBuffer.buf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        for (std::size_t viewID = 0; viewID < swapchainImages.size(); ++viewID) {                
+            std::uint32_t imageIndex{ 0 };
+            auto& swapchainContext = GetSwapchainImageContext(swapchainImages[viewID], imageIndex);
+            swapchainContext.depthBuffer.TransitionLayout(m_cmdBuffer, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
-                vkCmdBindPipeline(m_cmdBuffer.buf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_videoStreamPipelines[static_cast<std::size_t>(mode)].pipe);
+            const auto& clearValues = VideoClearValues[ClearValueIndex(mode)];
+            VkRenderPassBeginInfo renderPassBeginInfo{
+                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                .pNext = nullptr,
+                .clearValueCount = (uint32_t)clearValues.size(),
+                .pClearValues = clearValues.data()
+            };
+            // Bind and clear eye render target
+            swapchainContext.BindRenderTarget(imageIndex, /*out*/ renderPassBeginInfo);
 
-                assert(currentTexture.descriptorSet != VK_NULL_HANDLE);
-                vkCmdBindDescriptorSets(m_cmdBuffer.buf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_videoStreamLayout.layout, 0, 1, &currentTexture.descriptorSet, 0, nullptr);
+            vkCmdBeginRenderPass(m_cmdBuffer.buf, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-                vkCmdPushConstants(m_cmdBuffer.buf, m_videoStreamLayout.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(std::uint32_t), &viewID);
-                vkCmdDraw(m_cmdBuffer.buf, 3, 1, 0, 0);
+            vkCmdBindPipeline(m_cmdBuffer.buf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_videoStreamPipelines[static_cast<std::size_t>(mode)].pipe);
 
-                vkCmdEndRenderPass(m_cmdBuffer.buf);
-            }
-        });
+            assert(currentTexture.descriptorSet != VK_NULL_HANDLE);
+            vkCmdBindDescriptorSets(m_cmdBuffer.buf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_videoStreamLayout.layout, 0, 1, &currentTexture.descriptorSet, 0, nullptr);
+
+            vkCmdPushConstants(m_cmdBuffer.buf, m_videoStreamLayout.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(std::uint32_t), &viewID);
+            vkCmdDraw(m_cmdBuffer.buf, 3, 1, 0, 0);
+
+            vkCmdEndRenderPass(m_cmdBuffer.buf);
+        }
+
+#ifndef XR_USE_PLATFORM_ANDROID
+        constexpr const VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        auto frameSempahore = currentTexture.TimelineSemaphore();
+        auto frameWaitSemValuePtr = currentTexture.SemaphoreValue();
+        auto frameSignalSemValue = *frameWaitSemValuePtr + 1;
+
+        VkTimelineSemaphoreSubmitInfoKHR timelineInfo = {
+            .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO_KHR,
+            .pNext = nullptr,
+            .waitSemaphoreValueCount = 1,
+            .pWaitSemaphoreValues = frameWaitSemValuePtr,
+            .signalSemaphoreValueCount = 1,
+            .pSignalSemaphoreValues = &frameSignalSemValue,
+        };
+        VkSubmitInfo submitInfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext = &timelineInfo,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &frameSempahore,
+            .pWaitDstStageMask = &waitStageMask,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = &frameSempahore,
+        };
+        RenderEnd(submitInfo);
+        *frameWaitSemValuePtr = frameSignalSemValue;
+#else
+        RenderEnd();
+#endif
+        UnlockAVVkFrame(currentTexture);
     }
 
     virtual inline void SetEnvironmentBlendMode(const XrEnvironmentBlendMode newMode) override {
@@ -5189,9 +5478,8 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         return true;
     }
 
-    virtual bool GetVkContext(ALXR::Vk::VkContext& vkCtx) override {
-        vkCtx = static_cast<const ALXR::Vk::VkContext&>(m_vkCtx);
-        return true;
+    virtual const ALXR::Vk::VkContext* GetVkContext() const override {
+        return &m_vkCtx;
     }
 
     virtual void LockQueue(const QueueIndex& queueIndex) override {
@@ -5206,6 +5494,12 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         if (queueItr == m_queueFamilyMutexMap.end())
             return;
         queueItr->second.unlock();
+    }
+
+    virtual void SetAVHWFramesContext(AVHWFramesContext* hwFrameCtx) override {
+#if XR_USE_DECODER_FFMPEG
+        m_avhwctx = hwFrameCtx;
+#endif
     }
     
     virtual ~VulkanGraphicsPlugin() override {
@@ -5233,23 +5527,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
     std::list<SwapchainImageContext> m_swapchainImageContexts;
     std::map<const XrSwapchainImageBaseHeader*, SwapchainImageContext*> m_swapchainImageContextMap;
 
-    struct Context final : ALXR::Vk::VkContext {
-        using BaseType = ALXR::Vk::VkContext;
-
-        ExtensionList instanceExtensions{};
-        ExtensionList deviceExtensions{};
-        //
-        // @avQueueFamilyList:
-        //   refer to @ALXR::Vk::VkContext::avQueueFamilyList for details.
-        //
-        ALXR::Vk::AVQueueFamilyList avQueueFamilies{};
-
-        Context(): BaseType {
-            .instanceExtensions = &this->instanceExtensions,
-            .deviceExtensions = &this->deviceExtensions,
-            .avQueueFamilies = &this->avQueueFamilies,
-        } {}
-    } m_vkCtx{};
+    ALXR::Vk::VkContext m_vkCtx{};
 
     struct QueueData final {
         QueueIndex queueIndex;
@@ -5307,7 +5585,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
     };
 
     VkDescriptorPool m_descriptorPool{ VK_NULL_HANDLE };
-#ifdef XR_USE_PLATFORM_ANDROID
+#if 1 //def XR_USE_PLATFORM_ANDROID
     std::vector<VkDescriptorSet> m_descriptorSets{};
     std::size_t m_DescriptorSetSlot = 0;
 #endif
@@ -5343,6 +5621,10 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
     using ID3D11Texture2DPtr = Microsoft::WRL::ComPtr<ID3D11Texture2D>;
 #endif
 
+#if XR_USE_DECODER_FFMPEG
+    AVHWFramesContext* m_avhwctx{ nullptr };
+#endif
+
     struct VideoTexture {
 
         Texture texture{};
@@ -5352,6 +5634,13 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         VkDeviceSize stagingBufferSize {0};
 
         VkImageView imageView{ VK_NULL_HANDLE };
+
+#if XR_USE_DECODER_FFMPEG
+        AVFramePtr avFrame{};
+        inline AVVkFrame* GetAVVkFrame() const noexcept {
+            return reinterpret_cast<AVVkFrame*>(avFrame->data[0]);
+        }
+#endif
 
 #if defined(XR_USE_GRAPHICS_API_D3D11)
         ID3D11Texture2DPtr d3d11vaSharedTexture{};
@@ -5393,6 +5682,9 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 #ifdef XR_USE_PLATFORM_ANDROID
             std::swap(ndkImage, other.ndkImage);
 #endif
+#if XR_USE_DECODER_FFMPEG
+            std::swap(avFrame, other.avFrame);
+#endif
         }
 
         inline VideoTexture& operator=(VideoTexture&& other) noexcept
@@ -5417,6 +5709,9 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 #ifdef XR_USE_PLATFORM_ANDROID
             std::swap(ndkImage, other.ndkImage);
 #endif
+#if XR_USE_DECODER_FFMPEG
+            std::swap(avFrame, other.avFrame);
+#endif
             return *this;
         }
 
@@ -5429,9 +5724,9 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             d3d11vaSharedTexture.Reset();
             sharedHandle = 0;
 #endif
-            const auto vkDevice = texture.m_vkDevice;
-            if (vkDevice != VK_NULL_HANDLE)
+            if (texture.m_vkCtx && texture.m_vkCtx->device != VK_NULL_HANDLE)
             {
+                const auto vkDevice = texture.m_vkCtx->device;
                 if (stagingBuffer != VK_NULL_HANDLE) {
                     vkDestroyBuffer(vkDevice, stagingBuffer, nullptr);
                 }
@@ -5459,6 +5754,9 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             }
             ndkImage = nullptr;
 #endif
+#if XR_USE_DECODER_FFMPEG
+            avFrame.reset();
+#endif
         }
 
         inline bool IsValid() const {
@@ -5469,7 +5767,63 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         {
             return VulkanGraphicsPlugin::StagingBufferSize(width, height, format);
         }
+
+        inline VkSemaphore TimelineSemaphore() const {
+#if XR_USE_DECODER_FFMPEG
+            if (!IsValid()) return VK_NULL_HANDLE;
+            return GetAVVkFrame()->sem[0];
+#else
+            return VK_NULL_HANDLE;
+#endif
+        }
+
+        inline std::uint64_t* SemaphoreValue() {
+#if XR_USE_DECODER_FFMPEG
+            if (!IsValid()) return nullptr;
+            return &GetAVVkFrame()->sem_value[0];
+#else
+            return nullptr;
+#endif
+        }
+
+        inline void TransitionLayout(CmdBuffer& cmdBuffer, const VkImageLayout newLayout,
+            const uint32_t srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+            const uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED)
+        {
+            texture.TransitionLayout(
+                cmdBuffer,
+                newLayout,
+                srcQueueFamilyIndex,
+                dstQueueFamilyIndex
+            );
+#if XR_USE_DECODER_FFMPEG
+            if (auto avVKFrame = GetAVVkFrame()) {
+                avVKFrame->layout[0] = newLayout;
+            }
+#endif
+        }
+
     };
+
+    inline void LockAVVkFrame(const VideoTexture& vt) {
+#if XR_USE_DECODER_FFMPEG
+        if (auto avVkFrame = vt.GetAVVkFrame()) {
+            if (auto vkFramesCtx = (AVVulkanFramesContext*)m_avhwctx->hwctx) {
+                vkFramesCtx->lock_frame(m_avhwctx, avVkFrame);
+            }
+        }
+#endif
+    }
+
+    inline void UnlockAVVkFrame(const VideoTexture& vt) {
+#if XR_USE_DECODER_FFMPEG
+        if (auto avVkFrame = vt.GetAVVkFrame()) {
+            if (auto vkFramesCtx = (AVVulkanFramesContext*)m_avhwctx->hwctx) {
+                vkFramesCtx->unlock_frame(m_avhwctx, avVkFrame);
+            }
+        }
+#endif
+    }
 
     void SetVideoTextureBindings(VideoTexture& vidTex) {
         assert(m_vkCtx.device != VK_NULL_HANDLE && m_descriptorPool != VK_NULL_HANDLE);
@@ -5512,7 +5866,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
     std::atomic<std::size_t>            m_currentVideoTex{ 0 },
                                         m_renderTex{ std::size_t(-1) };
 
-#ifndef XR_USE_PLATFORM_ANDROID
+#if 0 //ndef XR_USE_PLATFORM_ANDROID
     std::size_t m_lastTexIndex = std::size_t(-1);
     std::size_t textureIdx = std::size_t(-1);
 #else
@@ -5520,7 +5874,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         Current,
         DeferredDelete
     };
-    using VideoTextureQueue = moodycamel::BlockingReaderWriterCircularBuffer<VideoTexture>; //atomic_queue::AtomicQueue2<VideoTexture, 2>;// moodycamel::BlockingReaderWriterCircularBuffer<VideoTexture>; // xrconcurrency::concurrent_queue<VideoTexture>; //
+    using VideoTextureQueue = moodycamel::BlockingReaderWriterCircularBuffer<VideoTexture>;
     VideoTextureQueue m_videoTexQueue{ VideoQueueSize };
 #endif
 

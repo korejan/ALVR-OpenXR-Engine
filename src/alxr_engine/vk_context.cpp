@@ -29,6 +29,18 @@ inline void VkChainUnlink(Tp& root, Tq& toUnlink) {
 }
 }
 
+void VkContext::InitExtFunctions() {
+    //if (instance != VK_NULL_HANDLE) {
+    //}
+    if (device != VK_NULL_HANDLE) {
+#ifdef VK_KHR_synchronization2
+        if (IsDeviceExtEnabled(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME)) {
+            vkCmdPipelineBarrier2KHR = GetDeviceProcAddr<PFN_vkCmdPipelineBarrier2KHR>("vkCmdPipelineBarrier2KHR");
+        }
+#endif
+    }
+}
+
 bool VkContext::GetSupportedDeviceFeatures(DeviceFeatures& features) const {
 #if 1
     const auto fpGetPhysicalDeviceFeatures2
@@ -53,6 +65,11 @@ bool VkContext::GetSupportedDeviceFeatures(DeviceFeatures& features) const {
     const VkPhysicalDeviceVulkan12Features& featuresV12 = features.featuresV12;
     assert(features.timeline.pNext == nullptr);
     features.timeline.timelineSemaphore = featuresV12.timelineSemaphore;
+#endif
+#if defined(VK_VERSION_1_3) && defined(VK_EXT_pipeline_creation_cache_control)
+    const VkPhysicalDeviceVulkan13Features& featuresV13 = features.featuresV13;
+    assert(features.pipelineCreationCacheControl.pNext == nullptr);
+    features.pipelineCreationCacheControl.pipelineCreationCacheControl = featuresV13.pipelineCreationCacheControl;
 #endif
     return true;
 }
@@ -122,6 +139,7 @@ bool VkContext::GetRequiredDeviceFeatures(ALXR::Vk::DeviceFeatures& requiredFeat
     dstFeatureV13.synchronization2 = srcFeatureV13.synchronization2;
     dstFeatureV13.computeFullSubgroups = srcFeatureV13.computeFullSubgroups;
     dstFeatureV13.shaderZeroInitializeWorkgroupMemory = srcFeatureV13.shaderZeroInitializeWorkgroupMemory;
+    dstFeatureV13.pipelineCreationCacheControl = srcFeatureV13.pipelineCreationCacheControl;
 #endif
 
 //#ifdef VK_KHR_multiview
@@ -135,6 +153,17 @@ bool VkContext::GetRequiredDeviceFeatures(ALXR::Vk::DeviceFeatures& requiredFeat
         VkChainUnlink(requiredFeatures.features2, requiredFeatures.multiview);
     }
 //#endif
+
+#ifdef VK_EXT_pipeline_creation_cache_control
+    if (IsDeviceExtEnabled(VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME)) {
+        auto& dstPipelineCreationCacheControl = requiredFeatures.pipelineCreationCacheControl;
+        const auto& srcPipelineCreationCacheControl = supportedFeatures.pipelineCreationCacheControl;
+        dstPipelineCreationCacheControl.pipelineCreationCacheControl = srcPipelineCreationCacheControl.pipelineCreationCacheControl;
+    }
+    else {
+        VkChainUnlink(requiredFeatures.features2, requiredFeatures.pipelineCreationCacheControl);
+    }
+#endif
 
     if (IsDeviceExtEnabled(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME)) {
         auto& dstTimeline = requiredFeatures.timeline;
@@ -230,6 +259,10 @@ void DeviceFeatures::InitNextPtrs(const DeviceFeatures* const src /*= nullptr*/)
     void* nextptr = nullptr;
 #else
     void* nextptr = &multiview;
+#endif
+
+#if !defined(VK_VERSION_1_3) && defined(VK_EXT_pipeline_creation_cache_control)
+    DF_SET_NEXT_PTR(pipelineCreationCacheControl);
 #endif
 
 #if !defined(XR_USE_PLATFORM_ANDROID) && !defined(XR_DISABLE_DECODER_THREAD)
