@@ -28,6 +28,10 @@
 #include "foveation.h"
 #include "input_thread.h"
 
+#if defined(XR_USE_PLATFORM_WIN32)
+#include <timeapi.h>
+#endif
+
 #if defined(XR_USE_PLATFORM_WIN32) && defined(XR_EXPORT_HIGH_PERF_GPU_SELECTION_SYMBOLS)
 #pragma message("Enabling Symbols to select high-perf GPUs first")
 // Export symbols to get the high performance gpu as first adapter in IDXGIFactory::EnumAdapters().
@@ -84,18 +88,14 @@ constexpr inline bool is_valid(const ALXRClientCtx& rCtx)
 
 bool alxr_init(const ALXRClientCtx* rCtx, /*[out]*/ ALXRSystemProperties* systemProperties) {
     try {
-#if 0
-        while (!::IsDebuggerPresent()) {
-            ::Sleep(100);
-        }
-        __debugbreak();
-#endif
-
         if (rCtx == nullptr || !is_valid(*rCtx))
         {
             Log::Write(Log::Level::Error, "Rust context has not been setup!");
             return false;
         }
+#ifdef XR_USE_PLATFORM_WIN32
+        timeBeginPeriod(1);
+#endif
         
         gClientCtx = std::make_shared<ALXRClientCtx>(*rCtx);
         const auto &ctx = *gClientCtx;
@@ -238,6 +238,9 @@ void alxr_destroy() {
     alxr_stop_decoder_thread();
     gProgram.reset();
     gClientCtx.reset();
+#ifdef XR_USE_PLATFORM_WIN32
+    timeEndPeriod(1);
+#endif
 }
 
 void alxr_request_exit_session() {

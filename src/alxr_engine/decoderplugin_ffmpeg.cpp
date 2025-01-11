@@ -1,4 +1,4 @@
-#if !defined(XR_USE_PLATFORM_ANDROID)  && !defined(XR_DISABLE_DECODER_THREAD)
+#if !defined(XR_USE_PLATFORM_ANDROID) && !defined(XR_DISABLE_DECODER_THREAD)
 
 #include "pch.h"
 #include "common.h"
@@ -46,8 +46,8 @@ extern "C" {
 
 namespace {;
 template < typename AVType, void(&avdeleter)(AVType*) >
-struct AVDeleter1 {
-    inline void operator()(AVType* avc) const
+struct AVDeleter1 final {
+    inline void operator()(AVType* avc) const noexcept
     {
         if (avc)
             avdeleter(avc);
@@ -55,8 +55,8 @@ struct AVDeleter1 {
 };
 
 template < typename AVType, void(&avdeleter)(AVType**) >
-struct AVDeleter2 {
-    inline void operator()(AVType* avc) const
+struct AVDeleter2 final {
+    inline void operator()(AVType* avc) const noexcept
     {
         if (avc)
             avdeleter(&avc);
@@ -75,8 +75,8 @@ using make_av_ptr_type2 = std::unique_ptr<
     AVDeleter2<AVType, avdeleter>
 >;
 
-struct AVPacketDeleter{
-    inline void operator()(AVPacket* avc) const {
+struct AVPacketDeleter final {
+    inline void operator()(AVPacket* avc) const noexcept {
         if (avc) {
             av_packet_free(&avc);
         }
@@ -289,6 +289,8 @@ constexpr inline auto GetVideoTextureMemFuns(const IGraphicsPlugin& gp, const AL
         return RetType(&IGraphicsPlugin::CreateVideoTexturesCUDA, &IGraphicsPlugin::UpdateVideoTextureCUDA, true);
     // case ALXRDecoderType::VAAPI:
     //     return RetType(&IGraphicsPlugin::CreateVideoTexturesVAAPI, &IGraphicsPlugin::UpdateVideoTextureVAAPI);
+    case ALXRDecoderType::VULKAN:
+        return RetType(&IGraphicsPlugin::CreateVideoTexturesVk, &IGraphicsPlugin::UpdateVideoTextureVk, true);
     case ALXRDecoderType::D311VA:
         // D3D11VA-vulkan buffer interop not working.
         if (!IsApiVulkan(gp)) {
@@ -367,20 +369,13 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
     virtual bool Run(IDecoderPlugin::shared_bool& isRunningToken) override
     {
         using AVCodecContextPtr = make_av_ptr_type2<AVCodecContext, avcodec_free_context>;
-        using AVFramePtr = make_av_ptr_type2<AVFrame, av_frame_free>;
+        using AVFramePtr = IGraphicsPlugin::AVFramePtr;
         using AVBufferRefPtr = make_av_ptr_type2<AVBufferRef, av_buffer_unref>;
 
         if (!isRunningToken || m_ctx.programPtr == nullptr) {
             Log::Write(Log::Level::Warning, "Decoder run parameters not valid.");
             return false;
         }
-
-#if 0
-        while (!::IsDebuggerPresent()) {
-            ::Sleep(100);
-        }
-        __debugbreak();
-#endif
 
         const auto graphicsPluginPtr = [&]() -> GraphicsPluginPtr
         {
@@ -484,14 +479,14 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
         if (type == AV_HWDEVICE_TYPE_VULKAN) {
             Log::Write(Log::Level::Verbose, "Init AV_HWDEVICE_TYPE_VULKAN");
 
-            ALXR::Vk::VkContext vkCtx{};
-            if (!graphicsPluginPtr->GetVkContext(vkCtx)) {
+            const auto vkCtx = graphicsPluginPtr->GetVkContext();
+            if (vkCtx == nullptr) {
                 Log::Write(Log::Level::Error, "Failed to get Vulkan context.");
                 return false;
             }
 
             m_vkDeviceFeatures = {};
-            if (!vkCtx.GetRequiredDeviceFeatures(m_vkDeviceFeatures)) {
+            if (!vkCtx->GetRequiredDeviceFeatures(m_vkDeviceFeatures)) {
                 Log::Write(Log::Level::Error, "Failed to get Vulkan context.");
                 return false;
             }
@@ -505,16 +500,16 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
             avDeviceContext->user_opaque = graphicsPluginPtr.get();
             auto avVkDeviceContext = (AVVulkanDeviceContext*)avDeviceContext->hwctx;
             *avVkDeviceContext = {
-                .alloc = vkCtx.allocator,
+                .alloc = vkCtx->allocator,
                 .get_proc_addr = vkGetInstanceProcAddr,
-                .inst = vkCtx.instance,
-                .phys_dev = vkCtx.physicalDevice,
-                .act_dev = vkCtx.device,
+                .inst = vkCtx->instance,
+                .phys_dev = vkCtx->physicalDevice,
+                .act_dev = vkCtx->device,
                 .device_features = m_vkDeviceFeatures.features2,
-                .enabled_inst_extensions = vkCtx.instanceExtensions->data(),
-                .nb_enabled_inst_extensions = static_cast<int>(vkCtx.instanceExtensions->size()),
-                .enabled_dev_extensions = vkCtx.deviceExtensions->data(),
-                .nb_enabled_dev_extensions = static_cast<int>(vkCtx.deviceExtensions->size()),
+                .enabled_inst_extensions = vkCtx->instanceExtensions.data(),
+                .nb_enabled_inst_extensions = static_cast<int>(vkCtx->instanceExtensions.size()),
+                .enabled_dev_extensions = vkCtx->deviceExtensions.data(),
+                .nb_enabled_dev_extensions = static_cast<int>(vkCtx->deviceExtensions.size()),
 #if FF_API_VULKAN_FIXED_QUEUES
                 .queue_family_index = -1,
                 .nb_graphics_queues = 0,
@@ -531,8 +526,8 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
                 .unlock_queue = AVUnlockQueueVk,
                 .nb_qf = 0,
             };
-            if (vkCtx.avQueueFamilies) {
-                const auto& avQueueFamilies = vkCtx.avQueueFamilies->queueFamilies;
+            if (vkCtx->avQueueFamilies.queueFamilies.size() > 0) {
+                const auto& avQueueFamilies = vkCtx->avQueueFamilies.queueFamilies;
                 const std::size_t queueFamilyCount = std::min(
                     avQueueFamilies.size(),
                     std::size(avVkDeviceContext->qf)
@@ -552,7 +547,7 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
 #if FF_API_VULKAN_FIXED_QUEUES
 #pragma warning(push)
 #pragma warning(disable : 4996)
-                const auto& legacyFamilyQueues = vkCtx.avQueueFamilies->queueFamilyIndex;
+                const auto& legacyFamilyQueues = vkCtx->avQueueFamilies.queueFamilyIndex;
                 if (legacyFamilyQueues.decode != ALXR::Vk::NullQueueIndex) {                    
                     const auto getQueueCount = [&avQueueFamilies](const std::uint32_t queueFamilyIdx) -> int {
                         if (queueFamilyIdx == ALXR::Vk::NullQueueIndex)
@@ -564,6 +559,9 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
                         if (itr == avQueueFamilies.end()) return 0;
                         return itr->queueCount;
                     };
+                    avVkDeviceContext->queue_family_index = legacyFamilyQueues.graphics;
+                    avVkDeviceContext->nb_graphics_queues = getQueueCount(legacyFamilyQueues.graphics);
+
                     avVkDeviceContext->queue_family_decode_index = legacyFamilyQueues.decode;
                     avVkDeviceContext->nb_decode_queues = getQueueCount(legacyFamilyQueues.decode);
 
@@ -597,21 +595,19 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
             return false;
         }
 
-        const AVFramePtr NullFrame{nullptr};
-        const AVFramePtr swFrame{ av_frame_alloc() };
-        const AVFramePtr hwFrame{ av_frame_alloc() };
-        if (swFrame == nullptr || hwFrame == nullptr) {
-            Log::Write(Log::Level::Error, "Failed to allocate avFrames.");
-            return false;
-        }
 
         const auto [CreateVideoTextures, UpdateVideoTextures, isBufferInteropSupported] = GetVideoTextureMemFuns(*graphicsPluginPtr, m_ctx.decoderType);
         assert(CreateVideoTextures != nullptr && UpdateVideoTextures != nullptr);
-                
+
+        constexpr const AVDeleter2<AVFrame, av_frame_free> AVFrameDeleter{};
+        const AVFramePtr NullFrame{};
+
+        std::size_t planeCount = 0;
+        ALXR::YcbcrFormat pixFmt = ALXR::YcbcrFormat::Unknown;
+        std::once_flag once_flag{};
+
         using namespace std::literals::chrono_literals;
         static constexpr const auto QueueWaitTimeout = 500ms;
-        std::size_t planeCount = 0;
-        std::once_flag once_flag{};
         while (isRunningToken)
         {
             NALPacket nalPacket{};
@@ -628,6 +624,7 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
             pkt->pts = duration_cast<microseconds64>(ClockType::now().time_since_epoch()).count();
 
             LatencyCollector::Instance().decoderInput(nalPacket.frameIndex);
+            AVFramePtr hwFrame{ av_frame_alloc(), AVFrameDeleter };
             const auto result = decode_packet(pkt.get(), codecCtx.get(), hwFrame.get());
             LatencyCollector::Instance().decoderOutput(nalPacket.frameIndex);
             //av_packet_unref(pkt.get());
@@ -637,10 +634,12 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
                 continue;
             }
 
+            AVFramePtr swFrame{};
             const auto& avFrame = [&/*, isBTS = isBufferInteropSupported*/]() -> const AVFramePtr& {
                 if (isBufferInteropSupported || type == AV_HWDEVICE_TYPE_NONE)
                     return hwFrame;
                 CHECK(hwFrame->format == m_hwPixFmt);
+                swFrame.reset(av_frame_alloc(), AVFrameDeleter);
                 const auto result = av_hwframe_transfer_data(swFrame.get(), hwFrame.get(), 0);
                 if (result < 0) {
                     LogLibAV(Log::Level::Warning, result, "Failed to transfer hw-frame to sw-frame");
@@ -655,12 +654,14 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
             std::call_once(once_flag, [&/*, cvt = CreateVideoTextures*/]()
             {
                 LogFrameInfo(*avFrame, *codecCtx);
-                const auto pixFmt = GetXrPixelFormat(*avFrame, *codecCtx);
+                pixFmt = GetXrPixelFormat(*avFrame, *codecCtx);
                 CHECK(pixFmt != ALXR::YcbcrFormat::Unknown);
                 planeCount = ALXR::YcbcrPlaneCount(pixFmt);
                 assert(planeCount > 0);
                 Log::Write(Log::Level::Verbose, Fmt("ALXR::YcbcrFormat: %lu", pixFmt));
-
+                if (type == AV_HWDEVICE_TYPE_VULKAN) {
+                    graphicsPluginPtr->SetAVHWFramesContext(reinterpret_cast<AVHWFramesContext*>(codecCtx->hw_frames_ctx->data));
+                }
                 using CreateVideoTextureInfo = IGraphicsPlugin::CreateVideoTextureInfo;
                 const CreateVideoTextureInfo info = {
                     .width = static_cast<std::uint32_t>(avFrame->width),
@@ -693,7 +694,9 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
                     .pitch = static_cast<std::size_t>(avFrame->linesize[1]),
                     .height = uvHeight
                 },
-                .frameIndex = nalPacket.frameIndex
+                .avFrame = avFrame,
+                .format = pixFmt,
+                .frameIndex = nalPacket.frameIndex,
             };
             if (planeCount > 2) {
                 buffer.chroma2 = {

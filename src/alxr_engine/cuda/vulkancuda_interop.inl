@@ -288,7 +288,7 @@ virtual void CreateVideoTexturesCUDA(const CreateVideoTextureInfo& info) overrid
         vidTex.format = pixelFmt;
         vidTex.texture.CreateExported
         (
-            m_vkCtx.device, &m_memAllocator,
+            m_vkCtx, &m_memAllocator,
             static_cast<std::uint32_t>(info.width), static_cast<std::uint32_t>(info.height), pixelFmt,
             VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_CREATE_DISJOINT_BIT
         );
