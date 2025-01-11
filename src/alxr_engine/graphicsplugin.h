@@ -4,10 +4,14 @@
 
 #pragma once
 
+#include <memory>
+
 #ifdef None // xlib...
 #undef None
 #endif
 
+struct AVFrame;
+struct AVHWFramesContext;
 struct XrVisibilityMaskKHR;
 
 namespace ALXR {
@@ -116,6 +120,7 @@ struct IGraphicsPlugin {
     virtual void CreateVideoTexturesCUDA(const CreateVideoTextureInfo& /*create_info*/) { return; }
     virtual void CreateVideoTexturesMediaCodec(const CreateVideoTextureInfo& /*create_info*/) { return; }
     virtual void CreateVideoTexturesVAAPI(const CreateVideoTextureInfo& /*create_info*/) { return; }
+    virtual void CreateVideoTexturesVk(const CreateVideoTextureInfo& /*create_info*/) { return; }
 
     virtual const void* GetD3D11AVDevice() const { return nullptr;  }
     virtual void* GetD3D11AVDevice() { return nullptr; }
@@ -123,6 +128,7 @@ struct IGraphicsPlugin {
     virtual const void* GetD3D11VADeviceContext() const { return nullptr; }
     virtual void* GetD3D11VADeviceContext() { return nullptr; }
 
+    using AVFramePtr = std::shared_ptr<AVFrame>;
     struct Buffer {
         void* data = nullptr;
         std::size_t pitch = 0;
@@ -132,12 +138,15 @@ struct IGraphicsPlugin {
         Buffer luma{};
         Buffer chroma{};
         Buffer chroma2{};
+        AVFramePtr avFrame;
+        ALXR::YcbcrFormat format;
         std::uint64_t frameIndex = std::uint64_t(-1);
     };
     virtual void UpdateVideoTexture(const YUVBuffer& /*yuvBuffer*/) {}
     virtual void UpdateVideoTextureCUDA(const YUVBuffer& /*yuvBuffer*/) {}
     virtual void UpdateVideoTextureD3D11VA(const YUVBuffer& /*yuvBuffer*/) {}
     virtual void UpdateVideoTextureVAAPI(const YUVBuffer& /*yuvBuffer*/) {}
+    virtual void UpdateVideoTextureVk(const YUVBuffer& /*yuvBuffer*/) {}
 
     struct MediaCodecBuffer final {
         YUVBuffer ycbcrBuffer;
@@ -168,10 +177,11 @@ struct IGraphicsPlugin {
 
     virtual bool SetVisibilityMask(uint32_t /*viewIndex*/, const struct XrVisibilityMaskKHR& /*visibilityMask*/) { return true; }
 
-    virtual bool GetVkContext(ALXR::Vk::VkContext& /*vkContext*/) { return false; }
+    virtual const ALXR::Vk::VkContext* GetVkContext() const { return nullptr; }
     using QueueIndex = ALXR::Vk::QueueIndex;
     virtual void LockQueue(const QueueIndex& /*queueIndex*/) {}
     virtual void UnlockQueue(const QueueIndex& /*queueIndex*/) {}
+    virtual void SetAVHWFramesContext(AVHWFramesContext* /*hwFrameCtx*/) {}
 };
 
 // Create a graphics plugin for the graphics API specified in the options.

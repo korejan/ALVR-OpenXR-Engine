@@ -267,7 +267,7 @@ if(WIN32)
         target_link_options(alxr_engine PRIVATE "$<$<NOT:$<CONFIG:Debug>>:/OPT:REF>")
         target_link_options(alxr_engine PRIVATE "$<$<NOT:$<CONFIG:Debug>>:/OPT:ICF>")
     endif()
-    target_link_libraries(alxr_engine ole32)
+    target_link_libraries(alxr_engine ole32 winmm)
     if(MSVC)
         # Right now can't build this on MinGW because of directxcolors, directxmath, etc.
         target_link_libraries(alxr_engine dxguid d3d11 d3d12 d3dcompiler dxgi)
