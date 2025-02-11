@@ -10,6 +10,7 @@
 #include <array>
 #include <string_view>
 #include <sstream>
+#include <chrono>
 
 namespace Log {
 namespace {;
