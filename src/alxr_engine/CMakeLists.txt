@@ -86,7 +86,7 @@ if(ANDROID)
         ${LOCAL_HEADERS}
         ${VULKAN_SHADERS})
         #$<TARGET_OBJECTS:android_native_app_glue>)
-    target_link_libraries(alxr_engine ${ANDROID_LIBRARY} ${ANDROID_LOG_LIBRARY} mediandk)
+    target_link_libraries(alxr_engine ${ANDROID_LIBRARY} ${ANDROID_LOG_LIBRARY} mediandk android_native_app_glue)
     if (NOT DISABLE_DECODER_SUPPORT)
         target_link_libraries(alxr_engine mediandk)
     endif()

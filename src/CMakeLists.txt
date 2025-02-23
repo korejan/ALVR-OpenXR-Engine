@@ -87,6 +87,9 @@ elseif(ANDROID)
     endif()
 endif()
 
+set(OPENGLES_INCOMPATIBLE TRUE)
+set(OPENGL_INCOMPATIBLE TRUE)
+
 if(NOT OPENGL_INCOMPATIBLE)
     set(OpenGL_GL_PREFERENCE GLVND)
     find_package(OpenGL)
@@ -271,6 +274,16 @@ if((OPENGL_FOUND OR OpenGLES_FOUND)
     message(
         STATUS
             "Enabling OpenGL support in hello_xr, loader_test, and conformance, if configured"
+    )
+elseif(ANDROID)
+    add_library(android_native_app_glue STATIC
+        "${ANDROID_NATIVE_APP_GLUE}/android_native_app_glue.c"
+    )
+    target_include_directories(
+        android_native_app_glue PUBLIC "${ANDROID_NATIVE_APP_GLUE}"
+    )
+    target_compile_options(
+        android_native_app_glue PRIVATE -Wno-unused-parameter
     )
 endif()
 

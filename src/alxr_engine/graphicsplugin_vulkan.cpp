@@ -2500,6 +2500,46 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         Log::Write(Log::Level::Verbose, "Vulkan debug utils initialized");
     }
 
+#if defined(VK_API_VERSION_1_1) && (VK_VERSION_1_1 > 0)
+    #define ALXR_MIN_VK_API_VERSION VK_API_VERSION_1_1
+#else
+    #error "Vulkan versions below 1.1 are not supported!"
+#endif
+
+    static std::uint32_t MakeMinReqApiVersion(const XrGraphicsRequirementsVulkan2KHR& graphicsRequirements) {
+
+        const std::uint32_t predefinedMajor = VK_VERSION_MAJOR(ALXR_MIN_VK_API_VERSION);
+        const std::uint32_t predefinedMinor = VK_VERSION_MINOR(ALXR_MIN_VK_API_VERSION);
+        const std::uint32_t predefinedPatch = VK_VERSION_PATCH(ALXR_MIN_VK_API_VERSION);
+
+        const std::uint32_t runtimeMajor = XR_VERSION_MAJOR(graphicsRequirements.minApiVersionSupported);
+        const std::uint32_t runtimeMinor = XR_VERSION_MINOR(graphicsRequirements.minApiVersionSupported);
+        const std::uint32_t runtimePatch = XR_VERSION_PATCH(graphicsRequirements.minApiVersionSupported);
+
+        std::uint32_t selectedMajor = predefinedMajor;
+        std::uint32_t selectedMinor = predefinedMinor;
+        std::uint32_t selectedPatch = predefinedPatch;
+
+        if (runtimeMajor > selectedMajor) {
+            selectedMajor = runtimeMajor;
+            selectedMinor = runtimeMinor;
+            selectedPatch = runtimePatch;
+        } else if (runtimeMajor == selectedMajor) {
+            if (runtimeMinor > selectedMinor) {
+                selectedMinor = runtimeMinor;
+                selectedPatch = runtimePatch;
+            } else if (runtimeMinor == selectedMinor && runtimePatch > selectedPatch) {
+                selectedPatch = runtimePatch;
+            }
+        }
+
+#ifndef VK_MAKE_API_VERSION // very old versions of sdk headers don't have this defined...
+#define VK_MAKE_API_VERSION(variant, major, minor, patch) \
+    ((((uint32_t)(variant)) << 29U) | (((uint32_t)(major)) << 22U) | (((uint32_t)(minor)) << 12U) | ((uint32_t)(patch)))
+#endif
+        return VK_MAKE_API_VERSION(0, selectedMajor, selectedMinor, selectedPatch);
+    }
+
     void InitializeDevice(XrInstance instance, XrSystemId systemId, const XrEnvironmentBlendMode newMode, const bool enableVisibilityMask) override {
         m_visibilityMaskEnabled = enableVisibilityMask;
         // Create the Vulkan device for the adapter associated with the system.
@@ -2529,37 +2569,20 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             vkInstExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
 
-        VkApplicationInfo appInfo = {
+        const VkApplicationInfo appInfo = {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext = nullptr,
             .pApplicationName = "alxr-client",
             .applicationVersion = VK_MAKE_VERSION(1,0,0),
             .pEngineName = "alxr-engine",
             .engineVersion = VK_MAKE_VERSION(1,0,0),
-            .apiVersion = 0,
+            .apiVersion = MakeMinReqApiVersion(graphicsRequirements),
         };
-#ifdef XR_USE_PLATFORM_ANDROID
-#pragma message ("Using Vulkan API version 1.1")
-        appInfo.apiVersion = VK_API_VERSION_1_1;
-        const char* const vulkanVersionStr = "1.1";
-#else
-#if defined(VK_API_VERSION_1_3) && (VK_VERSION_1_3 > 0)
-#pragma message ("Using Vulkan API version 1.3")
-        appInfo.apiVersion = VK_API_VERSION_1_3;
-        const char* const vulkanVersionStr = "1.3";
-#elif defined(VK_API_VERSION_1_2) && (VK_VERSION_1_2 > 0)
-#pragma message ("Using Vulkan API version 1.2")
-        appInfo.apiVersion = VK_API_VERSION_1_2;
-        const char* const vulkanVersionStr = "1.2";
-#elif defined(VK_API_VERSION_1_1) && (VK_VERSION_1_1 > 0)
-#pragma message ("Using Vulkan API version 1.1")
-        appInfo.apiVersion = VK_API_VERSION_1_1;
-        const char* const vulkanVersionStr = "1.1";
-#else
-#error "Vulkan versions below 1.1 are not supported!"
-#endif
-#endif
-        Log::Write(Log::Level::Info, Fmt("Using Vulkan version: %s", vulkanVersionStr));
+        Log::Write(Log::Level::Info, Fmt("Using Vulkan version: %u.%u.%u",
+            VK_VERSION_MAJOR(appInfo.apiVersion),
+            VK_VERSION_MINOR(appInfo.apiVersion),
+            VK_VERSION_PATCH(appInfo.apiVersion)
+        ));
 
         const VkInstanceCreateInfo instInfo{
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,

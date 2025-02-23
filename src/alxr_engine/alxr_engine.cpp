@@ -387,6 +387,8 @@ void alxr_on_receive(const unsigned char* packet, unsigned int packetSize)
             assert(packetSize >= sizeof(VideoFrame));
             const auto& header = *reinterpret_cast<const VideoFrame*>(packet);
             gDecoderThread.QueuePacket(header, packetSize);
+#else
+        (void)packetSize;
 #endif
         } break;        
         case ALVR_PACKET_TYPE_TIME_SYNC: {
