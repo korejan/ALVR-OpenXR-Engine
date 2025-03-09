@@ -266,13 +266,13 @@ void ClearVideoTexturesCUDA()
     //ClearVideoTextures();
 }
 
-virtual void CreateVideoTexturesCUDA(const std::size_t width, const std::size_t height, const XrPixelFormat pixfmt) override
+virtual void CreateVideoTexturesCUDA(const CreateVideoTextureInfo& info) override
 {
-    CHECK_MSG((pixfmt != XrPixelFormat::G8_B8_R8_3PLANE_420 &&
-        pixfmt != XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420), "3-Planes formats are not supported!");
+    CHECK_MSG((info.pixfmt != ALXR::YcbcrFormat::G8_B8_R8_3PLANE_420 &&
+        info.pixfmt != ALXR::YcbcrFormat::G10X6_B10X6_R10X6_3PLANE_420), "3-Planes formats are not supported!");
 
-    const auto pixelFmt = MapFormat(pixfmt);
-    CreateVideoStreamPipeline(pixelFmt);
+    const auto pixelFmt = MapFormat(info.pixfmt);
+    CreateVideoStreamPipeline(pixelFmt, info.ycbcrModel, info.ycbcrRange);
 
     std::array<VkFormat, 2> planeFmts{
         GetLumaFormat(pixelFmt),
@@ -283,13 +283,13 @@ virtual void CreateVideoTexturesCUDA(const std::size_t width, const std::size_t 
         auto& vidTex = m_videoTextures[texIndex];
         auto& newSharedTex = m_videoTexturesCuda[texIndex];
 
-        vidTex.width = width;
-        vidTex.height = height;
+        vidTex.width = info.width;
+        vidTex.height = info.height;
         vidTex.format = pixelFmt;
         vidTex.texture.CreateExported
         (
             m_vkDevice, &m_memAllocator,
-            static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), pixelFmt,
+            static_cast<std::uint32_t>(info.width), static_cast<std::uint32_t>(info.height), pixelFmt,
             VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_CREATE_DISJOINT_BIT
         );
 
@@ -343,7 +343,7 @@ virtual void CreateVideoTexturesCUDA(const std::size_t width, const std::size_t 
             const cudaExternalMemoryMipmappedArrayDesc cuExtmemMipDesc {
                 .offset = 0,
                 .formatDesc = CreateChannelDesc(planeFmts[planeIndex]),
-                .extent = make_cudaExtent(width / (1 + planeIndex), height / (1 + planeIndex), 0),                
+                .extent = make_cudaExtent(info.width / (1 + planeIndex), info.height / (1 + planeIndex), 0),
                 .flags = cudaArrayColorAttachment,
                 .numLevels = 1
             };

@@ -1,4 +1,4 @@
-cbuffer FoveationParams : register(b2) {
+cbuffer FoveationParams : register(b3) {
     float2 EyeSizeRatio;
     float2 EdgeRatio;
     float2 C1;

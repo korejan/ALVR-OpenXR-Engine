@@ -52,6 +52,7 @@
 #include "concurrent_queue.h"
 #include "timing.h"
 #include "foveation.h"
+#include "xr_colorspaces.h"
 
 namespace {
 
@@ -2454,7 +2455,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         std::memcpy(m_vkDeviceUUID.data(), vkPhysicalDeviceIDProperties.deviceUUID, VK_UUID_SIZE);
 
         if (vkPhysicalDeviceIDProperties.deviceLUIDValid)
-            std::memcpy(m_vkDeviceLUID.data(), vkPhysicalDeviceIDProperties.deviceLUID, VK_UUID_SIZE);
+            std::memcpy(m_vkDeviceLUID.data(), vkPhysicalDeviceIDProperties.deviceLUID, sizeof(vkPhysicalDeviceIDProperties.deviceLUID));
     }
 
     void InitExtDebugUtils() {
@@ -2789,7 +2790,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             D3D_FEATURE_LEVEL_12_1, D3D_FEATURE_LEVEL_12_0, D3D_FEATURE_LEVEL_11_1,
             D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0
         };
-        UINT creationFlags = /*D3D11_CREATE_DEVICE_BGRA_SUPPORT |*/ D3D11_CREATE_DEVICE_VIDEO_SUPPORT;
+        UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_VIDEO_SUPPORT;
 #if !defined(NDEBUG)
         creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
@@ -3410,17 +3411,17 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
     uint32_t GetSupportedSwapchainSampleCount(const XrViewConfigurationView&) override { return VK_SAMPLE_COUNT_1_BIT; }
 
-    constexpr static VkFormat MapFormat(const XrPixelFormat pixfmt)
+    constexpr static VkFormat MapFormat(const ALXR::YcbcrFormat pixfmt)
     {
         switch (pixfmt)
         {
-        case XrPixelFormat::G8_B8_R8_3PLANE_420:
+        case ALXR::YcbcrFormat::G8_B8_R8_3PLANE_420:
             return VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM;
-        case XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420:
+        case ALXR::YcbcrFormat::G10X6_B10X6_R10X6_3PLANE_420:
             return VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16;
-        case XrPixelFormat::NV12:
+        case ALXR::YcbcrFormat::NV12:
             return VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
-        case XrPixelFormat::P010LE:
+        case ALXR::YcbcrFormat::P010LE:
             return VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16;
         default:return VK_FORMAT_UNDEFINED;
         }
@@ -3737,15 +3738,17 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         CreateImageDescriptorSets();
     }
 
-    void CreateVideoStreamPipeline(const VkFormat pixFmt)
+    void CreateVideoStreamPipeline(const VkFormat pixFmt,
+                                   const ALXR::YcbcrModel ycbcrModel,
+                                   const ALXR::YcbcrRange ycbcrRange)
     {
         CHECK(pixFmt != VkFormat::VK_FORMAT_UNDEFINED);
         const VkSamplerYcbcrConversionCreateInfo conversionInfo {
             .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
             .pNext = nullptr,
             .format = pixFmt,
-            .ycbcrModel = VK_SAMPLER_YCBCR_MODEL_CONVERSION_YCBCR_709,
-            .ycbcrRange = VK_SAMPLER_YCBCR_RANGE_ITU_NARROW,
+            .ycbcrModel = static_cast<VkSamplerYcbcrModelConversion>(ycbcrModel),
+            .ycbcrRange = static_cast<VkSamplerYcbcrRange>(ycbcrRange),
             .components {
                 .r = VK_COMPONENT_SWIZZLE_IDENTITY,
                 .g = VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -3813,16 +3816,16 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         m_videoStreamLayout.Clear();
     }
 
-    virtual void CreateVideoTextures(const std::size_t width, const std::size_t height, const XrPixelFormat pixfmt) override
+    virtual void CreateVideoTextures(const CreateVideoTextureInfo& info) override
     {
-        const auto pixelFmt = MapFormat(pixfmt);
-        CreateVideoStreamPipeline(pixelFmt);
+        const auto pixelFmt = MapFormat(info.pixfmt);
+        CreateVideoStreamPipeline(pixelFmt, info.ycbcrModel, info.ycbcrRange);
 
-        const VkDeviceSize texSize = StagingBufferSize(width, height, pixelFmt);
+        const VkDeviceSize texSize = StagingBufferSize(info.width, info.height, pixelFmt);
         for (auto& vidTex : m_videoTextures)
         {
-            vidTex.width = width;
-            vidTex.height = height;
+            vidTex.width = info.width;
+            vidTex.height = info.height;
             vidTex.format = pixelFmt;
             vidTex.stagingBufferSize = createStaggingBuffer
             (
@@ -3835,7 +3838,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             vidTex.texture.Create
             (
                 m_vkDevice, &m_memAllocator,
-                static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), pixelFmt,
+                static_cast<std::uint32_t>(info.width), static_cast<std::uint32_t>(info.height), pixelFmt,
                 VK_IMAGE_TILING_OPTIMAL
             );
             CHECK(vidTex.texture.IsValid());
@@ -3865,12 +3868,12 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         }
     }
 
-    virtual void CreateVideoTexturesMediaCodec(const std::size_t /*width*/, const std::size_t /*height*/, const XrPixelFormat /*pixfmt*/) override
+    virtual void CreateVideoTexturesMediaCodec(const CreateVideoTextureInfo& /*info*/) override
     {
         // NOT USED OR REQUIRED, Please check UpdateVideoTexturesMediaCodec Instead.
 #if 0
         const auto pixelFmt = MapFormat(pixfmt);
-        CreateVideoStreamPipeline(pixelFmt);
+        CreateVideoStreamPipeline(pixelFmt, info.ycbcrModel, info.ycbcrRange);
         
         //const VkDeviceSize texSize = StagingBufferSize(width, height, pixelFmt);
         for (auto& vidTex : m_videoTextures)
@@ -3911,17 +3914,17 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 #endif
     }
 
-    virtual void CreateVideoTexturesD3D11VA(const std::size_t width, const std::size_t height, const XrPixelFormat pixfmt) override
+    virtual void CreateVideoTexturesD3D11VA(const CreateVideoTextureInfo& info) override
     {
 #if !defined(ALXR_ENABLE_VULKAN_D3D11VA_BUFFER_INTEROP)
-        CreateVideoTextures(width, height, pixfmt);
+        CreateVideoTextures(info);
 #else
 #if defined(XR_USE_GRAPHICS_API_D3D11)
         CHECK_MSG((pixfmt != XrPixelFormat::G8_B8_R8_3PLANE_420 &&
             pixfmt != XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420), "3-Planes formats are not supported!");
 
-        const auto pixelFmt = MapFormat(pixfmt);
-        CreateVideoStreamPipeline(pixelFmt);
+        const auto pixelFmt = MapFormat(info.pixfmt);
+        CreateVideoStreamPipeline(pixelFmt, info.ycbcrModel, info.ycbcrRange);
 
         constexpr const auto MapFormat = [](const XrPixelFormat pixfmt) -> DXGI_FORMAT {
             switch (pixfmt) {
@@ -3943,11 +3946,11 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         for (auto& vidTex : m_videoTextures)
         {
             const D3D11_TEXTURE2D_DESC descDepth {
-                .Width = static_cast<UINT> (width),
-                .Height = static_cast<UINT>(height),
+                .Width = static_cast<UINT> (info.width),
+                .Height = static_cast<UINT>(info.height),
                 .MipLevels = 1,
                 .ArraySize = 1,
-                .Format = MapFormat(pixfmt),
+                .Format = MapFormat(info.pixfmt),
                 .SampleDesc {
                     .Count = 1,
                     .Quality = 0
@@ -3967,13 +3970,13 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             vidTex.sharedHandle = GetSharedHandle(newTex);
             CHECK(vidTex.sharedHandle != 0);
 
-            vidTex.width = width;
-            vidTex.height = height;
-            vidTex.format = pixelFmt;
+            vidTex.width = info.width;
+            vidTex.height = info.height;
+            vidTex.format = info.pixelFmt;
             vidTex.texture.CreateImportedD3D11Texture
             (
                 m_vkPhysicalDevice, m_vkDevice, &m_memAllocator,
-                vidTex.sharedHandle, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), pixelFmt,
+                vidTex.sharedHandle, static_cast<std::uint32_t>(info.width), static_cast<std::uint32_t>(info.height), pixelFmt,
                 VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_CREATE_DISJOINT_BIT
             );
             //CloseHandle(vidTex.sharedHandle);
@@ -4002,7 +4005,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             SetVideoTextureBindings(vidTex);
         }
 #else
-        (void)width; (void)height; (void)pixfmt;
+        (void)info;
 #endif
 #endif
     }
@@ -4904,7 +4907,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
 // BEGIN VIDEO STREAM DATA /////////////////////////////////////////////////////////////
     std::array<std::uint8_t, VK_UUID_SIZE> m_vkDeviceUUID{};
-    std::array<std::uint8_t, VK_UUID_SIZE> m_vkDeviceLUID{};
+    std::array<std::uint8_t, 8> m_vkDeviceLUID{};
 
 #if defined(XR_USE_GRAPHICS_API_D3D11)
     Microsoft::WRL::ComPtr<ID3D11Device>        m_d3d11vaDevice{};

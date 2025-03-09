@@ -12,6 +12,10 @@ struct XrVisibilityMaskKHR;
 
 namespace ALXR {
     struct FoveatedDecodeParams;
+
+    enum class YcbcrFormat : std::uint32_t;
+    enum class YcbcrModel : std::uint32_t;
+    enum class YcbcrRange : std::uint32_t;
 }
 
 struct Cube {
@@ -25,26 +29,6 @@ enum class PassthroughMode : std::size_t {
     MaskLayer,
     TypeCount,
 };
-
-enum class XrPixelFormat : std::uint32_t {
-    Uknown = 0,
-    NV12,
-    P010LE,
-    G8_B8_R8_3PLANE_420,
-    G10X6_B10X6_R10X6_3PLANE_420
-};
-
-constexpr inline std::size_t PlaneCount(const XrPixelFormat f) {
-    switch (f) {
-    case XrPixelFormat::NV12:
-    case XrPixelFormat::P010LE:
-        return 2;
-    case XrPixelFormat::G8_B8_R8_3PLANE_420:
-    case XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420:
-        return 3;
-    default: return 0;
-    }
-}
 
 // Wraps a graphics API so the main openxr program can be graphics API-independent.
 struct IGraphicsPlugin {
@@ -115,11 +99,18 @@ struct IGraphicsPlugin {
         return view.recommendedSwapchainSampleCount;
     }
 
-    virtual void CreateVideoTextures(const std::size_t /*width*/, const std::size_t /*height*/, const XrPixelFormat /*pixfmt*/) {}
-    virtual void CreateVideoTexturesD3D11VA(const std::size_t /*width*/, const std::size_t /*height*/, const XrPixelFormat /*pixfmt*/) { return; }
-    virtual void CreateVideoTexturesCUDA(const std::size_t /*width*/, const std::size_t /*height*/, const XrPixelFormat /*pixfmt*/) { return; }
-    virtual void CreateVideoTexturesMediaCodec(const std::size_t /*width*/, const std::size_t /*height*/, const XrPixelFormat /*pixfmt*/) { return; }
-    virtual void CreateVideoTexturesVAAPI(const std::size_t /*width*/, const std::size_t /*height*/, const XrPixelFormat /*pixfmt*/) { return; }
+    struct CreateVideoTextureInfo final {
+        std::uint32_t width;
+        std::uint32_t height;
+        ALXR::YcbcrFormat pixfmt;
+        ALXR::YcbcrModel ycbcrModel;
+        ALXR::YcbcrRange ycbcrRange;
+    };
+    virtual void CreateVideoTextures(const CreateVideoTextureInfo& /*create_info*/) {}
+    virtual void CreateVideoTexturesD3D11VA(const CreateVideoTextureInfo& /*create_info*/) { return; }
+    virtual void CreateVideoTexturesCUDA(const CreateVideoTextureInfo& /*create_info*/) { return; }
+    virtual void CreateVideoTexturesMediaCodec(const CreateVideoTextureInfo& /*create_info*/) { return; }
+    virtual void CreateVideoTexturesVAAPI(const CreateVideoTextureInfo& /*create_info*/) { return; }
 
     virtual const void* GetD3D11AVDevice() const { return nullptr;  }
     virtual void* GetD3D11AVDevice() { return nullptr; }

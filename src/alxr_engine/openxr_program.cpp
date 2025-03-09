@@ -941,7 +941,7 @@ struct OpenXrProgram final : IOpenXrProgram {
                 case XR_REFERENCE_SPACE_TYPE_UNBOUNDED_MSFT: return "UboundedMSFT";
                 //case XR_REFERENCE_SPACE_TYPE_COMBINED_EYE_VARJO:
                 };
-                assert(false); // "Uknown HMD reference space type"
+                assert(false); // "Unknown HMD reference space type"
                 return "Stage";
             };
             const auto availSpaces = GetAvailableReferenceSpaces();

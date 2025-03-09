@@ -26,6 +26,7 @@
 #include "cuda/d3d11cuda_interop.h"
 #endif
 #include "foveation.h"
+#include "xr_colorspaces.h"
 
 using namespace Microsoft::WRL;
 using namespace DirectX;
@@ -63,44 +64,57 @@ TryAgain:
     }
 }
 
-constexpr inline DXGI_FORMAT MapFormat(const XrPixelFormat pixfmt) {
+constexpr inline DXGI_FORMAT MapFormat(const ALXR::YcbcrFormat pixfmt) {
     switch (pixfmt) {
-    case XrPixelFormat::NV12: return DXGI_FORMAT_NV12;
-    case XrPixelFormat::P010LE: return DXGI_FORMAT_P010;
+    case ALXR::YcbcrFormat::NV12: return DXGI_FORMAT_NV12;
+    case ALXR::YcbcrFormat::P010LE: return DXGI_FORMAT_P010;
     }
     return DXGI_FORMAT_UNKNOWN;
 }
 
-constexpr inline DXGI_FORMAT GetLumaFormat(const XrPixelFormat yuvFmt) {
+constexpr inline DXGI_FORMAT GetLumaFormat(const ALXR::YcbcrFormat yuvFmt) {
     switch (yuvFmt) {
-    case XrPixelFormat::G8_B8_R8_3PLANE_420:          return DXGI_FORMAT_R8_UNORM;
-    case XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420: return DXGI_FORMAT_R16_UNORM;
+    case ALXR::YcbcrFormat::G8_B8_R8_3PLANE_420:          return DXGI_FORMAT_R8_UNORM;
+    case ALXR::YcbcrFormat::G10X6_B10X6_R10X6_3PLANE_420: return DXGI_FORMAT_R16_UNORM;
     }
     return ALXR::GetLumaFormat(MapFormat(yuvFmt));
 }
 
-constexpr inline DXGI_FORMAT GetChromaFormat(const XrPixelFormat yuvFmt) {
+constexpr inline DXGI_FORMAT GetChromaFormat(const ALXR::YcbcrFormat yuvFmt) {
     switch (yuvFmt) {
-    case XrPixelFormat::G8_B8_R8_3PLANE_420:          return DXGI_FORMAT_R8G8_UNORM;
-    case XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420: return DXGI_FORMAT_R16G16_UNORM;
+    case ALXR::YcbcrFormat::G8_B8_R8_3PLANE_420:          return DXGI_FORMAT_R8G8_UNORM;
+    case ALXR::YcbcrFormat::G10X6_B10X6_R10X6_3PLANE_420: return DXGI_FORMAT_R16G16_UNORM;
     }
     return ALXR::GetChromaFormat(MapFormat(yuvFmt));
 }
 
-constexpr inline DXGI_FORMAT GetChromaUFormat(const XrPixelFormat yuvFmt) {
+constexpr inline DXGI_FORMAT GetChromaUFormat(const ALXR::YcbcrFormat yuvFmt) {
     switch (yuvFmt) {
-    case XrPixelFormat::G8_B8_R8_3PLANE_420:          return DXGI_FORMAT_R8_UNORM;
-    case XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420: return DXGI_FORMAT_R16_UNORM;
+    case ALXR::YcbcrFormat::G8_B8_R8_3PLANE_420:          return DXGI_FORMAT_R8_UNORM;
+    case ALXR::YcbcrFormat::G10X6_B10X6_R10X6_3PLANE_420: return DXGI_FORMAT_R16_UNORM;
     }
     return GetChromaFormat(yuvFmt);
 }
 
-constexpr inline DXGI_FORMAT GetChromaVFormat(const XrPixelFormat yuvFmt) {
+constexpr inline DXGI_FORMAT GetChromaVFormat(const ALXR::YcbcrFormat yuvFmt) {
     switch (yuvFmt) {
-    case XrPixelFormat::G8_B8_R8_3PLANE_420:          return DXGI_FORMAT_R8_UNORM;
-    case XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420: return DXGI_FORMAT_R16_UNORM;
+    case ALXR::YcbcrFormat::G8_B8_R8_3PLANE_420:          return DXGI_FORMAT_R8_UNORM;
+    case ALXR::YcbcrFormat::G10X6_B10X6_R10X6_3PLANE_420: return DXGI_FORMAT_R16_UNORM;
     }
     return GetChromaFormat(yuvFmt);
+}
+
+inline ALXR::YcbcrInfoConstantBuffer MakeYcbcrInfo(const IGraphicsPlugin::CreateVideoTextureInfo& info) {
+    const XMMATRIX ycbcrToNonLinearSRGB = ALXR::LoadXrMatrix(
+        ALXR::MakeYcbcrDequantizeColorMatrix(
+            info.pixfmt,
+            info.ycbcrModel,
+            info.ycbcrRange
+        ).value_or(Eigen::Matrix4f::Identity())
+    );
+    DirectX::XMFLOAT4X4 m;
+    XMStoreFloat4x4(&m, ycbcrToNonLinearSRGB);
+    return { .dequantizeColorMatrix = m };
 }
 
 inline bool SetMultithreadProtected(ComPtr<ID3D11Device> device)
@@ -265,6 +279,9 @@ struct D3D11GraphicsPlugin final : public IGraphicsPlugin {
 
         const CD3D11_BUFFER_DESC fovDecodeBufferDesc(sizeof(ALXR::FoveatedDecodeParams), D3D11_BIND_CONSTANT_BUFFER);
         CHECK_HRCMD(m_device->CreateBuffer(&fovDecodeBufferDesc, nullptr, m_fovDecodeCBuffer.ReleaseAndGetAddressOf()));
+
+        const CD3D11_BUFFER_DESC ycbcrBufferDesc(sizeof(ALXR::YcbcrInfoConstantBuffer), D3D11_BIND_CONSTANT_BUFFER);
+        CHECK_HRCMD(m_device->CreateBuffer(&ycbcrBufferDesc, nullptr, m_ycbcrCBuffer.ReleaseAndGetAddressOf()));
 
         const D3D11_SUBRESOURCE_DATA vertexBufferData{Geometry::c_cubeVertices};
         const CD3D11_BUFFER_DESC vertexBufferDesc(sizeof(Geometry::c_cubeVertices), D3D11_BIND_VERTEX_BUFFER);
@@ -616,12 +633,17 @@ struct D3D11GraphicsPlugin final : public IGraphicsPlugin {
 
             m_deviceContext->VSSetShader(m_videoVertexShader.Get(), nullptr, 0);
 
+            std::uint32_t psConstantBufferSize = 1;
+            m_deviceContext->UpdateSubresource(m_ycbcrCBuffer.Get(), 0, nullptr, &m_ycbcrInfo, 0, 0);
+
             if (const auto fovDecParmPtr = m_fovDecodeParams) {
                 alignas(16) const ALXR::FoveatedDecodeParams fdParam = *fovDecParmPtr;
                 m_deviceContext->UpdateSubresource(m_fovDecodeCBuffer.Get(), 0, nullptr, &fdParam, 0, 0);
-                ID3D11Buffer* const psConstantBuffers[] = { m_fovDecodeCBuffer.Get() };
-                m_deviceContext->PSSetConstantBuffers(2, (UINT)std::size(psConstantBuffers), psConstantBuffers);
+                ++psConstantBufferSize;
             }
+            ID3D11Buffer* const psConstantBuffers[] = { m_ycbcrCBuffer.Get(), m_fovDecodeCBuffer.Get() };
+            m_deviceContext->PSSetConstantBuffers(2, psConstantBufferSize, psConstantBuffers);
+
             const bool is3PlaneFormat = videoTex.chromaVSRV != nullptr;
             m_deviceContext->PSSetShader(m_videoPixelShader[VideoShaderIndex(is3PlaneFormat, newMode)].Get(), nullptr, 0);
 
@@ -821,14 +843,14 @@ struct D3D11GraphicsPlugin final : public IGraphicsPlugin {
         }
     }
 
-    virtual void CreateVideoTextures(const std::size_t width, const std::size_t height, const XrPixelFormat pixfmt) override
+    virtual void CreateVideoTextures(const CreateVideoTextureInfo& info) override
     {
         // Mapping NV12/P010 formats for dynamic textures do not work, at least on Nvidia drivers
         // Workaround is to just create seperate textures for each plane.
 #if 0
         CreateVideoTextures
         (
-            width, height, MapFormat(pixfmt),
+            info.width, info.height, MapFormat(info.pixfmt),
             D3D11_BIND_SHADER_RESOURCE,
             D3D11_USAGE_DYNAMIC,
             0,
@@ -837,22 +859,22 @@ struct D3D11GraphicsPlugin final : public IGraphicsPlugin {
 #else
         if (m_device == nullptr)
             return;
-        CHECK(width % 2 == 0);
-
         
         ClearVideoTextures();
 
-        const bool is3PlaneFmt = PlaneCount(pixfmt) > 2;
-        const auto lumaFormat = GetLumaFormat(pixfmt);
-        const auto chromaFormat = GetChromaFormat(pixfmt);
-        const auto chromaUFormat = GetChromaUFormat(pixfmt);
-        const auto chromaVFormat = GetChromaVFormat(pixfmt);
+        const bool is3PlaneFmt = ALXR::YcbcrPlaneCount(info.pixfmt) > 2;
+        const auto lumaFormat = GetLumaFormat(info.pixfmt);
+        const auto chromaFormat = GetChromaFormat(info.pixfmt);
+        const auto chromaUFormat = GetChromaUFormat(info.pixfmt);
+        const auto chromaVFormat = GetChromaVFormat(info.pixfmt);
+
+        m_ycbcrInfo = MakeYcbcrInfo(info);
 
         for (auto& vidTex : m_videoTextures)
         {
             const D3D11_TEXTURE2D_DESC lumaDesc {
-                .Width = static_cast<UINT> (width),
-                .Height = static_cast<UINT>(height),
+                .Width = static_cast<UINT> (info.width),
+                .Height = static_cast<UINT>(info.height),
                 .MipLevels = 1,
                 .ArraySize = 1,
                 .Format = lumaFormat,
@@ -1010,15 +1032,17 @@ struct D3D11GraphicsPlugin final : public IGraphicsPlugin {
         m_renderTex.store(freeIndex);
     }
 
-    virtual void CreateVideoTexturesD3D11VA(const std::size_t width, const std::size_t height, const XrPixelFormat pixfmt) override
+    virtual void CreateVideoTexturesD3D11VA(const CreateVideoTextureInfo& info) override
     {
         CHECK(m_d3d11va_device != nullptr);
-        CHECK_MSG((pixfmt != XrPixelFormat::G8_B8_R8_3PLANE_420 &&
-            pixfmt != XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420), "3-Planes formats are not supported!");
+        CHECK_MSG((info.pixfmt != ALXR::YcbcrFormat::G8_B8_R8_3PLANE_420 &&
+            info.pixfmt != ALXR::YcbcrFormat::G10X6_B10X6_R10X6_3PLANE_420), "3-Planes formats are not supported!");
+
+        m_ycbcrInfo = MakeYcbcrInfo(info);
 
         CreateVideoTextures
         (
-            width, height, MapFormat(pixfmt),
+            info.width, info.height, MapFormat(info.pixfmt),
             D3D11_BIND_SHADER_RESOURCE,
             D3D11_USAGE_DEFAULT,
             D3D11_RESOURCE_MISC_SHARED
@@ -1164,12 +1188,17 @@ struct D3D11GraphicsPlugin final : public IGraphicsPlugin {
             m_deviceContext->VSSetConstantBuffers(1, (UINT)std::size(constantBuffers), constantBuffers);
             m_deviceContext->VSSetShader(m_videoVertexShader.Get(), nullptr, 0);
 
+            std::uint32_t psConstantBufferSize = 1;
+            m_deviceContext->UpdateSubresource(m_ycbcrCBuffer.Get(), 0, nullptr, &m_ycbcrInfo, 0, 0);
+
             if (const auto fovDecParmPtr = m_fovDecodeParams) {
                 alignas(16) const ALXR::FoveatedDecodeParams fdParam = *fovDecParmPtr;
                 m_deviceContext->UpdateSubresource(m_fovDecodeCBuffer.Get(), 0, nullptr, &fdParam, 0, 0);
-                ID3D11Buffer* const psConstantBuffers[] = { m_fovDecodeCBuffer.Get() };
-                m_deviceContext->PSSetConstantBuffers(2, (UINT)std::size(psConstantBuffers), psConstantBuffers);
-            }
+                ++psConstantBufferSize;
+            }            
+            ID3D11Buffer* const psConstantBuffers[] = { m_ycbcrCBuffer.Get(), m_fovDecodeCBuffer.Get() };
+            m_deviceContext->PSSetConstantBuffers(2, (UINT)std::size(psConstantBuffers), psConstantBuffers);
+
             const bool is3PlaneFormat = videoTex.chromaVSRV != nullptr;
             m_deviceContext->PSSetShader(m_videoPixelShader[VideoShaderIndex(is3PlaneFormat, newMode)].Get(), nullptr, 0);
 
@@ -1370,6 +1399,7 @@ struct D3D11GraphicsPlugin final : public IGraphicsPlugin {
     ComPtr<ID3D11InputLayout> m_inputLayout;
     ComPtr<ID3D11Buffer> m_modelCBuffer;
     ComPtr<ID3D11Buffer> m_viewProjectionCBuffer;
+    ComPtr<ID3D11Buffer> m_ycbcrCBuffer;
     ComPtr<ID3D11Buffer> m_fovDecodeCBuffer;
     ComPtr<ID3D11Buffer> m_cubeVertexBuffer;
     ComPtr<ID3D11Buffer> m_cubeIndexBuffer;
@@ -1419,6 +1449,7 @@ struct D3D11GraphicsPlugin final : public IGraphicsPlugin {
         std::uint64_t frameIndex = std::uint64_t(-1);
     };
     std::array<NV12Texture, 2> m_videoTextures{};
+    ALXR::YcbcrInfoConstantBuffer m_ycbcrInfo = {};
     std::atomic<std::size_t>   m_currentVideoTex{ (std::size_t)0 }, m_renderTex{ (std::size_t)-1 };
     std::size_t currentTextureIdx = std::size_t(-1);
     //std::mutex                     m_renderMutex{};

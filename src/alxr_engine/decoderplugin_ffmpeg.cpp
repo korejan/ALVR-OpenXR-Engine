@@ -40,6 +40,7 @@ extern "C" {
 #include "openxr_program.h"
 #include "latency_manager.h"
 #include "timing.h"
+#include "xr_colorspaces.h"
 
 namespace {;
 template < typename AVType, void(&avdeleter)(AVType*) >
@@ -104,7 +105,7 @@ inline void LogLibAV(const Log::Level lvl, const int errnum, const char* msg = n
 {
     const char* errMsg = AverrorToCodeStr(errnum);
     if (errMsg == nullptr)
-        errMsg = "Uknown reason";
+        errMsg = "Unknown reason";
     Log::Write(lvl, Fmt("%s, error-id:%d reason: %s", msg, errnum, errMsg));
 }
 
@@ -152,33 +153,33 @@ constexpr inline AVHWDeviceType ToAVHWDeviceType(const ALXRDecoderType dtype)
     }
 }
 
-constexpr inline XrPixelFormat ToXrPixelFormat(const AVPixelFormat pixFmt)
+constexpr inline ALXR::YcbcrFormat ToXrPixelFormat(const AVPixelFormat pixFmt)
 {
     switch (pixFmt)
     {
     case AV_PIX_FMT_NV12:
     case AV_PIX_FMT_YUV420P:
     case AV_PIX_FMT_YUVJ420P:
-        return XrPixelFormat::NV12;
+        return ALXR::YcbcrFormat::NV12;
     case AV_PIX_FMT_P010LE:
     case AV_PIX_FMT_YUV420P10LE:
-        return XrPixelFormat::P010LE;
-    default: return XrPixelFormat::Uknown;
+        return ALXR::YcbcrFormat::P010LE;
+    default: return ALXR::YcbcrFormat::Unknown;
     }
 }
 
-constexpr inline XrPixelFormat ToXrPixel3PlaneFormat(const AVPixelFormat pixFmt)
+constexpr inline ALXR::YcbcrFormat ToXrPixel3PlaneFormat(const AVPixelFormat pixFmt)
 {
     switch (pixFmt)
     {
     case AV_PIX_FMT_NV12:
     case AV_PIX_FMT_YUV420P:
     case AV_PIX_FMT_YUVJ420P:
-        return XrPixelFormat::G8_B8_R8_3PLANE_420;
+        return ALXR::YcbcrFormat::G8_B8_R8_3PLANE_420;
     case AV_PIX_FMT_P010LE:
     case AV_PIX_FMT_YUV420P10LE:
-        return XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420;
-    default: return XrPixelFormat::Uknown;
+        return ALXR::YcbcrFormat::G10X6_B10X6_R10X6_3PLANE_420;
+    default: return ALXR::YcbcrFormat::Unknown;
     }
 }
 
@@ -191,10 +192,10 @@ constexpr inline std::size_t PlaneCount(const AVFrame& frame)
     return 0;
 }
 
-constexpr inline XrPixelFormat GetXrPixelFormat(const AVFrame& frame, const AVCodecContext& codecCtx)
+constexpr inline ALXR::YcbcrFormat GetXrPixelFormat(const AVFrame& frame, const AVCodecContext& codecCtx)
 {
     if (frame.format < 0)
-        return XrPixelFormat::Uknown;
+        return ALXR::YcbcrFormat::Unknown;
     const auto frameFmt = static_cast<AVPixelFormat>(frame.format);
     switch (frameFmt) {
     case AV_PIX_FMT_CUDA:
@@ -209,10 +210,63 @@ constexpr inline XrPixelFormat GetXrPixelFormat(const AVFrame& frame, const AVCo
         switch (PlaneCount(frame)) {
         case 2:  return ToXrPixelFormat(frameFmt);
         case 3:  return ToXrPixel3PlaneFormat(frameFmt);
-        default: return XrPixelFormat::Uknown;
+        default: return ALXR::YcbcrFormat::Unknown;
         }
 
     }
+}
+
+constexpr inline ALXR::YcbcrModel GetYcbcrModel(const AVFrame& frame, const AVCodecContext&) {
+    switch (frame.colorspace) {
+    case AVCOL_SPC_BT709:
+        return ALXR::YcbcrModel::BT709;
+    case AVCOL_SPC_BT2020_NCL:
+    case AVCOL_SPC_BT2020_CL:
+        return ALXR::YcbcrModel::BT2020;
+    default:
+        break;
+    }    
+    switch (frame.color_primaries) {
+    case AVCOL_PRI_BT709:
+        return ALXR::YcbcrModel::BT709;
+    case AVCOL_PRI_BT2020:
+        return ALXR::YcbcrModel::BT2020;
+    default:
+        break;
+    }
+    return ALXR::YcbcrModel::BT709;
+}
+
+constexpr inline ALXR::YcbcrRange GetYcbcrRange(const AVFrame& frame, const AVCodecContext&) {
+    switch (frame.color_range) {
+    case AVCOL_RANGE_JPEG:
+        return ALXR::YcbcrRange::ITU_Full;
+    case AVCOL_RANGE_MPEG:
+    default:
+        return ALXR::YcbcrRange::ITU_Narrow;
+        break;
+    }
+}
+
+inline void LogFrameInfo(const AVFrame& avFrame, const AVCodecContext& codecCtx) {
+    const auto fmtName = av_get_pix_fmt_name(codecCtx.sw_pix_fmt);
+    Log::Write(Log::Level::Verbose, Fmt("Video frame info:\n"
+        "\twidth            = %d\n"
+        "\theight           = %d\n"
+        "\tplane-count      = %d\n"
+        "\tpitch-0          = %d\n"
+        "\tpitch-1          = %d\n"
+        "\ttype             = %d\n"
+        "\tsw-type          = %d\n"
+        "\tsw-type-name     = %s\n"
+        "\tcolor-primaries  = %d\n"
+        "\tcolor-trc        = %d\n"
+        "\tcolorspace       = %d\n"
+        "\tcolor-range      = %d\n",
+        avFrame.width, avFrame.height, PlaneCount(avFrame), avFrame.linesize[0], avFrame.linesize[1],
+        avFrame.format, codecCtx.sw_pix_fmt, fmtName, avFrame.color_primaries,
+        avFrame.color_trc, avFrame.colorspace, avFrame.color_range
+    ));
 }
 
 inline bool IsApiVulkan(const IGraphicsPlugin& gp) {
@@ -465,20 +519,31 @@ struct FFMPEGDecoderPlugin final : public IDecoderPlugin {
                     return hwFrame;
                 CHECK(hwFrame->format == m_hwPixFmt);
                 CHECK((av_hwframe_transfer_data(swFrame.get(), hwFrame.get(), 0) == 0));
+                av_frame_copy_props(swFrame.get(), hwFrame.get());
                 return swFrame;
             }();
             assert(avFrame != nullptr);
 
             std::call_once(once_flag, [&/*, cvt = CreateVideoTextures*/]()
             {
-                Log::Write(Log::Level::Verbose, Fmt("Creating video textures, width=%d, height=%d, pitch-0=%d, pitch-1=%d, type=%d sw-type=%d",
-                    avFrame->width, avFrame->height, avFrame->linesize[0], avFrame->linesize[1], avFrame->format, codecCtx->sw_pix_fmt));
+                LogFrameInfo(*avFrame, *codecCtx);
                 const auto pixFmt = GetXrPixelFormat(*avFrame, *codecCtx);
-                CHECK(pixFmt != XrPixelFormat::Uknown);
-                planeCount = PlaneCount(pixFmt);
+                CHECK(pixFmt != ALXR::YcbcrFormat::Unknown);
+                planeCount = ALXR::YcbcrPlaneCount(pixFmt);
                 assert(planeCount > 0);
-                Log::Write(Log::Level::Verbose, Fmt("Pixel Format: %lu", pixFmt));
-                std::invoke(CreateVideoTextures, graphicsPluginPtr, avFrame->width, avFrame->height, pixFmt);
+                Log::Write(Log::Level::Verbose, Fmt("ALXR::YcbcrFormat: %lu", pixFmt));
+
+                using CreateVideoTextureInfo = IGraphicsPlugin::CreateVideoTextureInfo;
+                const CreateVideoTextureInfo info = {
+                    .width = static_cast<std::uint32_t>(avFrame->width),
+                    .height = static_cast<std::uint32_t>(avFrame->height),
+                    .pixfmt = pixFmt,
+                    .ycbcrModel = GetYcbcrModel(*avFrame, *codecCtx),
+                    .ycbcrRange = GetYcbcrRange(*avFrame, *codecCtx),
+                };
+                assert(codecCtx->color_trc == AVCOL_TRC_IEC61966_2_1 || codecCtx->color_trc == AVCOL_TRC_UNSPECIFIED);
+                assert(avFrame->color_trc == AVCOL_TRC_IEC61966_2_1 || avFrame->color_trc == AVCOL_TRC_UNSPECIFIED);
+                std::invoke(CreateVideoTextures, graphicsPluginPtr, info);
 
                 if (const auto clientCtx = m_ctx.clientCtx) {
                     clientCtx->setWaitingNextIDR(false);

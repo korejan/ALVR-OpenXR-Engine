@@ -342,8 +342,12 @@ struct MediaCodecDecoderPlugin final : IDecoderPlugin
         std::int32_t w = 0, h = 0;
         AMediaFormat_getInt32(outputFormat, AMEDIAFORMAT_KEY_WIDTH, &w);
         AMediaFormat_getInt32(outputFormat, AMEDIAFORMAT_KEY_HEIGHT, &h);
+        std::int32_t colorStd = 0, colorRange = 0;
+        AMediaFormat_getInt32(outputFormat, AMEDIAFORMAT_KEY_COLOR_STANDARD, &colorStd);
+        AMediaFormat_getInt32(outputFormat, AMEDIAFORMAT_KEY_COLOR_RANGE, &colorRange);
+
         assert(w != 0 && h != 0);
-        Log::Write(Log::Level::Info, Fmt("OUTPUT_FORMAT_CHANGED, w:%d, h:%d", w, h));
+        Log::Write(Log::Level::Info, Fmt("OUTPUT_FORMAT_CHANGED, w:%d, h:%d, color-std:%d, color-range:%d", w, h, colorStd, colorRange));
     }
 
     void OnCodecInputAvailable(AMediaCodec* /*codec*/, std::int32_t index) {

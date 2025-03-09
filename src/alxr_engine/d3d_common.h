@@ -28,6 +28,15 @@ struct alignas(16) MultiViewProjectionConstantBuffer {
     DirectX::XMFLOAT4X4A ViewProjection[2];
 };
 
+template < std::size_t N >
+struct alignas(N) YcbcrInfoConstantBufferT final {
+    DirectX::XMFLOAT4X4 dequantizeColorMatrix;
+};
+
+using YcbcrInfoConstantBuffer = YcbcrInfoConstantBufferT<16>;
+using YcbcrInfoRootConstant = YcbcrInfoConstantBufferT<4>;
+static_assert(sizeof(YcbcrInfoRootConstant) <= 256);
+
 enum VideoPShader : std::size_t {
     Normal = 0,
     PassthroughBlend,

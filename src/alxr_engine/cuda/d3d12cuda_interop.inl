@@ -130,22 +130,24 @@ inline void ClearCudaVideoTextures()
     ClearVideoTextures();
 }
 
-virtual void CreateVideoTexturesCUDA(const std::size_t width, const std::size_t height, const XrPixelFormat pixfmt) override
+virtual void CreateVideoTexturesCUDA(const CreateVideoTextureInfo& info) override
 {
     if (m_device == nullptr)
         return;
 
-    CHECK_MSG((pixfmt != XrPixelFormat::G8_B8_R8_3PLANE_420 &&
-        pixfmt != XrPixelFormat::G10X6_B10X6_R10X6_3PLANE_420), "3-Planes formats are not supported!");
+    CHECK_MSG((info.pixfmt != ALXR::YcbcrFormat::G8_B8_R8_3PLANE_420 &&
+        info.pixfmt != ALXR::YcbcrFormat::G10X6_B10X6_R10X6_3PLANE_420), "3-Planes formats are not supported!");
 
     ClearCudaVideoTextures();
+
+    m_ycbcrInfo = MakeYcbcrInfo(info);
 
     ComPtr<ID3D12GraphicsCommandList> cmdList;
     CHECK_HRCMD(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cudaCommandAllocator.Get(), nullptr,
         __uuidof(ID3D12GraphicsCommandList),
         reinterpret_cast<void**>(cmdList.ReleaseAndGetAddressOf())));
 
-    const auto yuvFormat = MapFormat(pixfmt);
+    const auto yuvFormat = MapFormat(info.pixfmt);
 
     /*constexpr*/ const DXGI_FORMAT LUMA_FORMAT = ALXR::GetLumaFormat(yuvFormat);
     /*constexpr*/ const DXGI_FORMAT CHROMA_FORMAT = ALXR::GetChromaFormat(yuvFormat);
@@ -166,8 +168,8 @@ virtual void CreateVideoTexturesCUDA(const std::size_t width, const std::size_t 
         const D3D12_RESOURCE_DESC lumaTextureDesc = {
             .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
             .Alignment = 0,
-            .Width = static_cast<UINT>(width),
-            .Height = static_cast<UINT>(height),
+            .Width = static_cast<UINT>(info.width),
+            .Height = static_cast<UINT>(info.height),
             .DepthOrArraySize = 1,
             .MipLevels = 1,
             .Format = LUMA_FORMAT,
