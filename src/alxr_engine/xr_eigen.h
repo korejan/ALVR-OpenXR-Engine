@@ -12,6 +12,14 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#ifndef ALXR_EIGEN_CONSTEXPR_INIT
+#if defined(__GNUC__) && !defined(__clang__)
+#define ALXR_EIGEN_CONSTEXPR_INIT(...) { __VA_ARGS__ }
+#else 
+#define ALXR_EIGEN_CONSTEXPR_INIT(...) {{ __VA_ARGS__ }}
+#endif
+#endif
+
 namespace ALXR {
 
 template < typename RealT >

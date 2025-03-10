@@ -90,7 +90,7 @@ constexpr inline std::uint64_t Pow2(const std::uint64_t ep) {
 }
 
 // Section 16.1. https://registry.khronos.org/DataFormat/specs/1.4/dataformat.1.4.html#QUANTIZATION_NARROW
-constexpr inline YcbcrDequantizationParams YcbcrDequantizeNarrowUNormParams(const std::uint8_t bitDepth) {
+inline YcbcrDequantizationParams YcbcrDequantizeNarrowUNormParams(const std::uint8_t bitDepth) {
     //static_assert(bitDepth >= 8, "bitDepth must >= 8 bits");
         
     const auto bn = static_cast<const float>(Pow2(bitDepth));
@@ -105,13 +105,13 @@ constexpr inline YcbcrDequantizationParams YcbcrDequantizeNarrowUNormParams(cons
     const float cOffset = -(128.f * bn8) / (224.f * bn8);
 
     return {
-        .scales  {{ yScale,  cScale,  cScale  }},
-        .offsets {{ yOffset, cOffset, cOffset }},
+        .scales  { yScale,  cScale,  cScale  },
+        .offsets { yOffset, cOffset, cOffset },
     };
 }
 
 // https://registry.khronos.org/DataFormat/specs/1.4/dataformat.1.4.html#QUANTIZATION_FULL
-constexpr inline YcbcrDequantizationParams YcbcrDequantizeFullUNormParams(const std::uint8_t bitDepth) {
+inline YcbcrDequantizationParams YcbcrDequantizeFullUNormParams(const std::uint8_t bitDepth) {
     //static_assert(bitDepth >= 8, "bitDepth must >= 8 bits");
 
     const auto bn = static_cast<const float>(Pow2(bitDepth));
@@ -126,12 +126,12 @@ constexpr inline YcbcrDequantizationParams YcbcrDequantizeFullUNormParams(const 
     const float cOffset = -bn1 / (bn - 1.f);
 
     return {
-        .scales  {{ yScale,  cScale,  cScale  }},
-        .offsets {{ yOffset, cOffset, cOffset }},
+        .scales  { yScale,  cScale,  cScale  },
+        .offsets { yOffset, cOffset, cOffset },
     };
 }
 
-constexpr inline YcbcrDequantizationParams YcbcrDequantizeUNormParams(const YcbcrRange ycbcrRange, const std::uint8_t bitDepth) {
+inline YcbcrDequantizationParams YcbcrDequantizeUNormParams(const YcbcrRange ycbcrRange, const std::uint8_t bitDepth) {
     switch (ycbcrRange) {
     case YcbcrRange::ITU_Full:
         return YcbcrDequantizeFullUNormParams(bitDepth);
@@ -147,15 +147,12 @@ inline Eigen::Matrix4f CombineYcbcrDequantizeAndColorMatrix(
 ) {
     // Scale each column of the color matrix by corresponding scale factor
     const Eigen::Matrix3f scaledColorMat = colorMat * dequanParams.scales.asDiagonal();
-
     // Calculate translation vector: colorMat * offsets
     const Eigen::Vector3f translation = colorMat * dequanParams.offsets;
-
     // Construct 4x4 affine transformation matrix
     Eigen::Matrix4f affineMat = Eigen::Matrix4f::Identity();
     affineMat.block<3, 3>(0, 0) = scaledColorMat;
     affineMat.block<3, 1>(0, 3) = translation;
-        
     return affineMat;
 }
 
