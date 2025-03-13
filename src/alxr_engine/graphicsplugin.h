@@ -132,8 +132,14 @@ struct IGraphicsPlugin {
     virtual void UpdateVideoTexture(const YUVBuffer& /*yuvBuffer*/) {}
     virtual void UpdateVideoTextureCUDA(const YUVBuffer& /*yuvBuffer*/) {}
     virtual void UpdateVideoTextureD3D11VA(const YUVBuffer& /*yuvBuffer*/) {}
-    virtual void UpdateVideoTextureMediaCodec(const YUVBuffer& /*yuvBuffer*/) {}
     virtual void UpdateVideoTextureVAAPI(const YUVBuffer& /*yuvBuffer*/) {}
+
+    struct MediaCodecBuffer final {
+        YUVBuffer ycbcrBuffer;
+        ALXR::YcbcrModel ycbcrModel;
+        ALXR::YcbcrRange ycbcrRange;
+    };
+    virtual void UpdateVideoTextureMediaCodec(const MediaCodecBuffer& /*yuvBuffer*/) {}
 
     virtual void ClearVideoTextures(){};
 

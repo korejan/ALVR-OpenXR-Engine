@@ -30,6 +30,7 @@
 #include "openxr_program.h"
 #include "latency_manager.h"
 #include "timing.h"
+#include "xr_colorspaces.h"
 
 #ifndef ENABLE_IF_DEBUG
 #ifndef NDEBUG
@@ -41,6 +42,41 @@
 
 namespace
 {;
+// the following are not defined in NDK MediaCodec (they are defined in Java)
+enum AMEDIAFORMAT_COLOR_RANGE : std::int32_t {
+    AMEDIAFORMAT_COLOR_RANGE_FULL = 1,
+    AMEDIAFORMAT_COLOR_RANGE_LIMITED = 2,
+};
+enum AMEDIAFORMAT_COLOR_STANDARD : std::int32_t {
+    AMEDIAFORMAT_COLOR_STANDARD_BT709 = 1,
+    AMEDIAFORMAT_COLOR_STANDARD_BT601_PAL = 2,
+    AMEDIAFORMAT_COLOR_STANDARD_BT601_NTSC = 4,
+    AMEDIAFORMAT_COLOR_STANDARD_BT2020 = 6,
+};
+
+constexpr inline ALXR::YcbcrModel ToYcbcrModel(std::int32_t x) {
+    switch (x) {
+    case AMEDIAFORMAT_COLOR_STANDARD_BT601_PAL:
+    case AMEDIAFORMAT_COLOR_STANDARD_BT601_NTSC:
+        return ALXR::YcbcrModel::BT601;
+    case AMEDIAFORMAT_COLOR_STANDARD_BT2020:
+        return ALXR::YcbcrModel::BT2020;
+    case AMEDIAFORMAT_COLOR_STANDARD_BT709:
+    default:
+        return ALXR::YcbcrModel::BT709;
+    }
+}
+
+constexpr inline ALXR::YcbcrRange ToYcbcrRange(std::int32_t x) {
+    switch (x) {
+    case AMEDIAFORMAT_COLOR_RANGE_FULL:
+        return ALXR::YcbcrRange::ITU_Full;
+    case AMEDIAFORMAT_COLOR_RANGE_LIMITED:
+    default:
+        return ALXR::YcbcrRange::ITU_Narrow;
+    }
+}
+
 struct FrameIndexMap final
 {
     using TimeStamp = std::uint64_t;
@@ -94,6 +130,8 @@ struct XrImageListener final
     using AImageReaderPtr = std::unique_ptr<AImageReader, AImageReaderDeleter>;
 
     FrameIndexMap     frameIndexMap{ 4096 };
+    ALXR::YcbcrModel  ycbcrModel{ ALXR::YcbcrModel::BT709 };
+    ALXR::YcbcrRange  ycbcrRange{ ALXR::YcbcrRange::ITU_Narrow };
     IOpenXrProgramPtr programPtr;
     AImageReaderPtr   imageReader;
     AImageReader_ImageListener imageListener;
@@ -204,13 +242,17 @@ struct XrImageListener final
             std::int32_t w = 0, h = 0;
             AImage_getWidth(img.get(), &w);
             AImage_getHeight(img.get(), &h);
-            const IGraphicsPlugin::YUVBuffer buf{
-                .luma {
-                    .data = img.release(),
-                    .pitch = (std::size_t)w,
-                    .height = (std::size_t)h
+            const IGraphicsPlugin::MediaCodecBuffer buf = {
+                .ycbcrBuffer = {
+                    .luma = {
+                        .data = img.release(),
+                        .pitch = (std::size_t)w,
+                        .height = (std::size_t)h
+                    },
+                    .frameIndex = frameIndex,
                 },
-                .frameIndex = frameIndex
+                .ycbcrModel = ycbcrModel,
+                .ycbcrRange = ycbcrRange,
             };
             graphicsPluginPtr->UpdateVideoTextureMediaCodec(buf);
         }
@@ -342,12 +384,19 @@ struct MediaCodecDecoderPlugin final : IDecoderPlugin
         std::int32_t w = 0, h = 0;
         AMediaFormat_getInt32(outputFormat, AMEDIAFORMAT_KEY_WIDTH, &w);
         AMediaFormat_getInt32(outputFormat, AMEDIAFORMAT_KEY_HEIGHT, &h);
-        std::int32_t colorStd = 0, colorRange = 0;
+        
+        std::int32_t colorStd = AMEDIAFORMAT_COLOR_STANDARD_BT709;
+        std::int32_t colorRange = AMEDIAFORMAT_COLOR_RANGE_LIMITED;
         AMediaFormat_getInt32(outputFormat, AMEDIAFORMAT_KEY_COLOR_STANDARD, &colorStd);
         AMediaFormat_getInt32(outputFormat, AMEDIAFORMAT_KEY_COLOR_RANGE, &colorRange);
 
+        if (const auto codecCtx = m_codecCtx) {
+            codecCtx->imgListener.ycbcrModel = ToYcbcrModel(colorStd);
+            codecCtx->imgListener.ycbcrRange = ToYcbcrRange(colorRange);
+        }
+
         assert(w != 0 && h != 0);
-        Log::Write(Log::Level::Info, Fmt("OUTPUT_FORMAT_CHANGED, w:%d, h:%d, color-std:%d, color-range:%d", w, h, colorStd, colorRange));
+        Log::Write(Log::Level::Info, Fmt("Codec format changed: w:%d, h:%d, color-std:%d, color-range:%d", w, h, colorStd, colorRange));
     }
 
     void OnCodecInputAvailable(AMediaCodec* /*codec*/, std::int32_t index) {

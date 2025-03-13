@@ -4187,7 +4187,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
 #ifdef XR_USE_PLATFORM_ANDROID
 
-    static inline void LogSuggestedYCBCRConversionParams(const Texture::AHBufferFormatProperties& formatProperties) {
+    static inline void LogSuggestedYCBCRConversionParams(const Texture::AHBufferFormatProperties& formatProperties, const MediaCodecBuffer& mcBuffer) {
         constexpr const auto YcbcrModelConversionToStr = [](const VkSamplerYcbcrModelConversion ymc) {
             switch (ymc) {
             case VK_SAMPLER_YCBCR_MODEL_CONVERSION_RGB_IDENTITY_KHR:
@@ -4231,7 +4231,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             default: return "unknown";
             }
         };
-        Log::Write(Log::Level::Info, Fmt("Suggested Ycbcr conversion parameters:\n"
+        Log::Write(Log::Level::Info, Fmt("Vk driver suggested Ycbcr conversion parameters:\n"
             "\tYcbcrModel: %s\n"
             "\tYcbcrRange: %s\n"
             "\tX-ChromaOffset: %s\n"
@@ -4240,10 +4240,18 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             YcbcrRangeToStr(formatProperties.suggestedYcbcrRange),
             ChromaLocationToStr(formatProperties.suggestedXChromaOffset),
             ChromaLocationToStr(formatProperties.suggestedYChromaOffset)));
+
+        Log::Write(Log::Level::Info, Fmt("MediaFormat values for the following parameters:\n"
+            "\tYcbcrModel: %s\n"
+            "\tYcbcrRange: %s\n"
+            "Using MediaFormat reported values instead.",
+            YcbcrModelConversionToStr(static_cast<VkSamplerYcbcrModelConversion>(mcBuffer.ycbcrModel)),
+            YcbcrRangeToStr(static_cast<VkSamplerYcbcrRange>(mcBuffer.ycbcrRange))));
     }
 
-    virtual void UpdateVideoTextureMediaCodec(const YUVBuffer& yuvBuffer) override
+    virtual void UpdateVideoTextureMediaCodec(const MediaCodecBuffer& mcBuffer) override
     {
+        const auto& yuvBuffer = mcBuffer.ycbcrBuffer;
         AImage* img = reinterpret_cast<AImage*>(yuvBuffer.luma.data);
         if (img == nullptr)
             return;
@@ -4286,8 +4294,8 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
                 .sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO,
                 .pNext = &externalFormat,
                 .format = formatProperties.format,
-                .ycbcrModel = formatProperties.suggestedYcbcrModel,
-                .ycbcrRange = formatProperties.suggestedYcbcrRange,
+                .ycbcrModel = static_cast<VkSamplerYcbcrModelConversion>(mcBuffer.ycbcrModel),
+                .ycbcrRange = static_cast<VkSamplerYcbcrRange>(mcBuffer.ycbcrRange),
                 .components = formatProperties.samplerYcbcrConversionComponents,
                 .xChromaOffset = formatProperties.suggestedXChromaOffset,
                 .yChromaOffset = formatProperties.suggestedYChromaOffset,
@@ -4295,7 +4303,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
                     VK_FILTER_LINEAR : VK_FILTER_NEAREST,
                 .forceExplicitReconstruction = (formatProperties.formatFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_BIT) != 0
             };
-            LogSuggestedYCBCRConversionParams(formatProperties);
+            LogSuggestedYCBCRConversionParams(formatProperties, mcBuffer);
             CreateVideoStreamPipeline(samplerInfo);
         }
         CHECK(!m_videoStreamLayout.IsNull() && m_videoStreamLayout.ycbcrSamplerConversion != VK_NULL_HANDLE);
