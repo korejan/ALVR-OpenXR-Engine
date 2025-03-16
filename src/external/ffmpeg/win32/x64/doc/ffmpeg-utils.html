@@ -17,7 +17,7 @@
       </h1>
 
 
-<div class="top-level-extent" id="SEC_Top">
+<a name="SEC_Top"></a>
 
 <div class="element-contents" id="SEC_Contents">
 <h2 class="contents-heading">Table of Contents</h2>
@@ -50,39 +50,21 @@
 </div>
 </div>
 
-<ul class="mini-toc">
-<li><a href="#Description" accesskey="1">Description</a></li>
-<li><a href="#Syntax" accesskey="2">Syntax</a></li>
-<li><a href="#Expression-Evaluation" accesskey="3">Expression Evaluation</a></li>
-<li><a href="#See-Also" accesskey="4">See Also</a></li>
-<li><a href="#Authors" accesskey="5">Authors</a></li>
-</ul>
-<div class="chapter-level-extent" id="Description">
-<h2 class="chapter"><span>1 Description<a class="copiable-link" href="#Description"> &para;</a></span></h2>
+<a name="Description"></a>
+<h2 class="chapter">1 Description<span class="pull-right"><a class="anchor hidden-xs" href="#Description" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Description" aria-hidden="true">TOC</a></span></h2>
 
 <p>This document describes some generic features and utilities provided
 by the libavutil library.
 </p>
 
-</div>
-<div class="chapter-level-extent" id="Syntax">
-<h2 class="chapter"><span>2 Syntax<a class="copiable-link" href="#Syntax"> &para;</a></span></h2>
+<a name="Syntax"></a>
+<h2 class="chapter">2 Syntax<span class="pull-right"><a class="anchor hidden-xs" href="#Syntax" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Syntax" aria-hidden="true">TOC</a></span></h2>
 
 <p>This section documents the syntax and formats employed by the FFmpeg
 libraries and tools.
 </p>
-<a class="anchor" id="quoting_005fand_005fescaping"></a><ul class="mini-toc">
-<li><a href="#Quoting-and-escaping" accesskey="1">Quoting and escaping</a></li>
-<li><a href="#Date" accesskey="2">Date</a></li>
-<li><a href="#Time-duration" accesskey="3">Time duration</a></li>
-<li><a href="#Video-size" accesskey="4">Video size</a></li>
-<li><a href="#Video-rate" accesskey="5">Video rate</a></li>
-<li><a href="#Ratio" accesskey="6">Ratio</a></li>
-<li><a href="#Color" accesskey="7">Color</a></li>
-<li><a href="#Channel-Layout" accesskey="8">Channel Layout</a></li>
-</ul>
-<div class="section-level-extent" id="Quoting-and-escaping">
-<h3 class="section"><span>2.1 Quoting and escaping<a class="copiable-link" href="#Quoting-and-escaping"> &para;</a></span></h3>
+<a class="anchor" id="quoting_005fand_005fescaping"></a><a name="Quoting-and-escaping"></a>
+<h3 class="section">2.1 Quoting and escaping<span class="pull-right"><a class="anchor hidden-xs" href="#Quoting-and-escaping" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Quoting-and-escaping" aria-hidden="true">TOC</a></span></h3>
 
 <p>FFmpeg adopts the following quoting and escaping mechanism, unless
 explicitly specified. The following rules are applied:
@@ -114,11 +96,8 @@ escaped according to the rules defined above.
 <p>The tool <samp class="file">tools/ffescape</samp> in the FFmpeg source tree can be used
 to automatically quote or escape a string in a script.
 </p>
-<ul class="mini-toc">
-<li><a href="#Examples" accesskey="1">Examples</a></li>
-</ul>
-<div class="subsection-level-extent" id="Examples">
-<h4 class="subsection"><span>2.1.1 Examples<a class="copiable-link" href="#Examples"> &para;</a></span></h4>
+<a name="Examples"></a>
+<h4 class="subsection">2.1.1 Examples<span class="pull-right"><a class="anchor hidden-xs" href="#Examples" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Examples" aria-hidden="true">TOC</a></span></h4>
 
 <ul class="itemize mark-bullet">
 <li>Escape the string <code class="code">Crime d'Amour</code> containing the <code class="code">'</code> special
@@ -149,10 +128,8 @@ when quoting it:
 </pre></div>
 </li></ul>
 
-<a class="anchor" id="date-syntax"></a></div>
-</div>
-<div class="section-level-extent" id="Date">
-<h3 class="section"><span>2.2 Date<a class="copiable-link" href="#Date"> &para;</a></span></h3>
+<a class="anchor" id="date-syntax"></a><a name="Date"></a>
+<h3 class="section">2.2 Date<span class="pull-right"><a class="anchor hidden-xs" href="#Date" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Date" aria-hidden="true">TOC</a></span></h3>
 
 <p>The accepted syntax is:
 </p><div class="example">
@@ -167,9 +144,8 @@ interpreted as UTC.
 If the year-month-day part is not specified it takes the current
 year-month-day.
 </p>
-<a class="anchor" id="time-duration-syntax"></a></div>
-<div class="section-level-extent" id="Time-duration">
-<h3 class="section"><span>2.3 Time duration<a class="copiable-link" href="#Time-duration"> &para;</a></span></h3>
+<a class="anchor" id="time-duration-syntax"></a><a name="Time-duration"></a>
+<h3 class="section">2.3 Time duration<span class="pull-right"><a class="anchor hidden-xs" href="#Time-duration" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Time-duration" aria-hidden="true">TOC</a></span></h3>
 
 <p>There are two accepted syntaxes for expressing time duration.
 </p>
@@ -195,11 +171,8 @@ respectively.
 </p>
 <p>In both expressions, the optional &lsquo;<samp class="samp">-</samp>&rsquo; indicates negative duration.
 </p>
-<ul class="mini-toc">
-<li><a href="#Examples-1" accesskey="1">Examples</a></li>
-</ul>
-<div class="subsection-level-extent" id="Examples-1">
-<h4 class="subsection"><span>2.3.1 Examples<a class="copiable-link" href="#Examples-1"> &para;</a></span></h4>
+<a name="Examples-1"></a>
+<h4 class="subsection">2.3.1 Examples<span class="pull-right"><a class="anchor hidden-xs" href="#Examples-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Examples-1" aria-hidden="true">TOC</a></span></h4>
 
 <p>The following examples are all valid time duration:
 </p>
@@ -229,10 +202,8 @@ respectively.
 </p></dd>
 </dl>
 
-<a class="anchor" id="video-size-syntax"></a></div>
-</div>
-<div class="section-level-extent" id="Video-size">
-<h3 class="section"><span>2.4 Video size<a class="copiable-link" href="#Video-size"> &para;</a></span></h3>
+<a class="anchor" id="video-size-syntax"></a><a name="Video-size"></a>
+<h3 class="section">2.4 Video size<span class="pull-right"><a class="anchor hidden-xs" href="#Video-size" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Video-size" aria-hidden="true">TOC</a></span></h3>
 <p>Specify the size of the sourced video, it may be a string of the form
 <var class="var">width</var>x<var class="var">height</var>, or the name of a size abbreviation.
 </p>
@@ -399,9 +370,8 @@ respectively.
 </p></dd>
 </dl>
 
-<a class="anchor" id="video-rate-syntax"></a></div>
-<div class="section-level-extent" id="Video-rate">
-<h3 class="section"><span>2.5 Video rate<a class="copiable-link" href="#Video-rate"> &para;</a></span></h3>
+<a class="anchor" id="video-rate-syntax"></a><a name="Video-rate"></a>
+<h3 class="section">2.5 Video rate<span class="pull-right"><a class="anchor hidden-xs" href="#Video-rate" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Video-rate" aria-hidden="true">TOC</a></span></h3>
 
 <p>Specify the frame rate of a video, expressed as the number of frames
 generated per second. It has to be a string in the format
@@ -436,9 +406,8 @@ number or a valid video frame rate abbreviation.
 </p></dd>
 </dl>
 
-<a class="anchor" id="ratio-syntax"></a></div>
-<div class="section-level-extent" id="Ratio">
-<h3 class="section"><span>2.6 Ratio<a class="copiable-link" href="#Ratio"> &para;</a></span></h3>
+<a class="anchor" id="ratio-syntax"></a><a name="Ratio"></a>
+<h3 class="section">2.6 Ratio<span class="pull-right"><a class="anchor hidden-xs" href="#Ratio" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Ratio" aria-hidden="true">TOC</a></span></h3>
 
 <p>A ratio can be expressed as an expression, or in the form
 <var class="var">numerator</var>:<var class="var">denominator</var>.
@@ -449,9 +418,8 @@ want to exclude those values.
 </p>
 <p>The undefined value can be expressed using the &quot;0:0&quot; string.
 </p>
-<a class="anchor" id="color-syntax"></a></div>
-<div class="section-level-extent" id="Color">
-<h3 class="section"><span>2.7 Color<a class="copiable-link" href="#Color"> &para;</a></span></h3>
+<a class="anchor" id="color-syntax"></a><a name="Color"></a>
+<h3 class="section">2.7 Color<span class="pull-right"><a class="anchor hidden-xs" href="#Color" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Color" aria-hidden="true">TOC</a></span></h3>
 
 <p>It can be the name of a color as defined below (case insensitive match) or a
 <code class="code">[0x|#]RRGGBB[AA]</code> sequence, possibly followed by @ and a string
@@ -889,9 +857,8 @@ component is not specified then &lsquo;<samp class="samp">0xff</samp>&rsquo; is 
 </p></dd>
 </dl>
 
-<a class="anchor" id="channel-layout-syntax"></a></div>
-<div class="section-level-extent" id="Channel-Layout">
-<h3 class="section"><span>2.8 Channel Layout<a class="copiable-link" href="#Channel-Layout"> &para;</a></span></h3>
+<a class="anchor" id="channel-layout-syntax"></a><a name="Channel-Layout"></a>
+<h3 class="section">2.8 Channel Layout<span class="pull-right"><a class="anchor hidden-xs" href="#Channel-Layout" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Channel-Layout" aria-hidden="true">TOC</a></span></h3>
 
 <p>A channel layout specifies the spatial disposition of the channels in
 a multi-channel audio stream. To specify a channel layout, FFmpeg
@@ -1128,10 +1095,8 @@ also be specified as a decimal number (if and only if not followed by &quot;c&qu
 <p>See also the function <code class="code">av_channel_layout_from_string</code> defined in
 <samp class="file">libavutil/channel_layout.h</samp>.
 </p>
-</div>
-</div>
-<div class="chapter-level-extent" id="Expression-Evaluation">
-<h2 class="chapter"><span>3 Expression Evaluation<a class="copiable-link" href="#Expression-Evaluation"> &para;</a></span></h2>
+<a name="Expression-Evaluation"></a>
+<h2 class="chapter">3 Expression Evaluation<span class="pull-right"><a class="anchor hidden-xs" href="#Expression-Evaluation" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Expression-Evaluation" aria-hidden="true">TOC</a></span></h2>
 
 <p>When evaluating an arithmetic expression, FFmpeg uses an internal
 formula evaluator, implemented through the <samp class="file">libavutil/eval.h</samp>
@@ -1547,17 +1512,15 @@ indication of the corresponding powers of 10 and of 2.
 </dl>
 
 
-</div>
-<div class="chapter-level-extent" id="See-Also">
-<h2 class="chapter"><span>4 See Also<a class="copiable-link" href="#See-Also"> &para;</a></span></h2>
+<a name="See-Also"></a>
+<h2 class="chapter">4 See Also<span class="pull-right"><a class="anchor hidden-xs" href="#See-Also" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-See-Also" aria-hidden="true">TOC</a></span></h2>
 
 <p><a class="url" href="ffmpeg.html">ffmpeg</a>, <a class="url" href="ffplay.html">ffplay</a>, <a class="url" href="ffprobe.html">ffprobe</a>,
 <a class="url" href="libavutil.html">libavutil</a>
 </p>
 
-</div>
-<div class="chapter-level-extent" id="Authors">
-<h2 class="chapter"><span>5 Authors<a class="copiable-link" href="#Authors"> &para;</a></span></h2>
+<a name="Authors"></a>
+<h2 class="chapter">5 Authors<span class="pull-right"><a class="anchor hidden-xs" href="#Authors" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Authors" aria-hidden="true">TOC</a></span></h2>
 
 <p>The FFmpeg developers.
 </p>
@@ -1570,8 +1533,6 @@ online repository at <a class="url" href="https://git.ffmpeg.org/ffmpeg">https:/
 <samp class="file">MAINTAINERS</samp> in the source code tree.
 </p>
 
-</div>
-</div>
       <p style="font-size: small;">
         This document was generated using <a class="uref" href="https://www.gnu.org/software/texinfo/"><em class="emph">makeinfo</em></a>.
       </p>

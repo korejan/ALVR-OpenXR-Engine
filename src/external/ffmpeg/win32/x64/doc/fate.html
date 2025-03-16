@@ -18,8 +18,8 @@
 
 
 <a name="Top"></a>
-<h4 class="Top">1</h4>
-<a class="top" id="SEC_Top"></a>
+<a name="SEC_Top"></a>
+
 <div class="element-contents" id="SEC_Contents">
 <h2 class="contents-heading">Table of Contents</h2>
 
@@ -40,15 +40,8 @@
 </div>
 </div>
 
-<ul class="mini-toc">
-<li><a href="#Introduction" accesskey="1">Introduction</a></li>
-<li><a href="#Using-FATE-from-your-FFmpeg-source-directory" accesskey="2">Using FATE from your FFmpeg source directory</a></li>
-<li><a href="#Submitting-the-results-to-the-FFmpeg-result-aggregation-server" accesskey="3">Submitting the results to the FFmpeg result aggregation server</a></li>
-<li><a href="#Uploading-new-samples-to-the-fate-suite" accesskey="4">Uploading new samples to the fate suite</a></li>
-<li><a href="#FATE-makefile-targets-and-variables" accesskey="5">FATE makefile targets and variables</a></li>
-</ul>
-<div class="chapter-level-extent" id="Introduction">
-<h2 class="chapter"><span>1 Introduction<a class="copiable-link" href="#Introduction"> &para;</a></span></h2>
+<a name="Introduction"></a>
+<h2 class="chapter">1 Introduction<span class="pull-right"><a class="anchor hidden-xs" href="#Introduction" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Introduction" aria-hidden="true">TOC</a></span></h2>
 
 <p>FATE is an extended regression suite on the client-side and a means
 for results aggregation and presentation on the server-side.
@@ -77,9 +70,8 @@ is not already listed on the above mentioned website.
 targets and variables.
 </p>
 
-</div>
-<div class="chapter-level-extent" id="Using-FATE-from-your-FFmpeg-source-directory">
-<h2 class="chapter"><span>2 Using FATE from your FFmpeg source directory<a class="copiable-link" href="#Using-FATE-from-your-FFmpeg-source-directory"> &para;</a></span></h2>
+<a name="Using-FATE-from-your-FFmpeg-source-directory"></a>
+<h2 class="chapter">2 Using FATE from your FFmpeg source directory<span class="pull-right"><a class="anchor hidden-xs" href="#Using-FATE-from-your-FFmpeg-source-directory" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Using-FATE-from-your-FFmpeg-source-directory" aria-hidden="true">TOC</a></span></h2>
 
 <p>If you want to run FATE on your machine you need to have the samples
 in place. You can get the samples via the build target fate-rsync.
@@ -144,9 +136,8 @@ running the complete test suite.
 <code class="command">configure</code> or set the <var class="var">TARGET_EXEC</var> Make variable.
 </p>
 
-</div>
-<div class="chapter-level-extent" id="Submitting-the-results-to-the-FFmpeg-result-aggregation-server">
-<h2 class="chapter"><span>3 Submitting the results to the FFmpeg result aggregation server<a class="copiable-link" href="#Submitting-the-results-to-the-FFmpeg-result-aggregation-server"> &para;</a></span></h2>
+<a name="Submitting-the-results-to-the-FFmpeg-result-aggregation-server"></a>
+<h2 class="chapter">3 Submitting the results to the FFmpeg result aggregation server<span class="pull-right"><a class="anchor hidden-xs" href="#Submitting-the-results-to-the-FFmpeg-result-aggregation-server" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Submitting-the-results-to-the-FFmpeg-result-aggregation-server" aria-hidden="true">TOC</a></span></h2>
 
 <p>To submit your results to the server you should run fate through the
 shell script <samp class="file">tests/fate.sh</samp> from the FFmpeg sources. This script needs
@@ -264,9 +255,8 @@ process.
 <p>The only thing left is to automate the execution of the fate.sh script and
 the synchronisation of the samples directory.
 </p>
-</div>
-<div class="chapter-level-extent" id="Uploading-new-samples-to-the-fate-suite">
-<h2 class="chapter"><span>4 Uploading new samples to the fate suite<a class="copiable-link" href="#Uploading-new-samples-to-the-fate-suite"> &para;</a></span></h2>
+<a name="Uploading-new-samples-to-the-fate-suite"></a>
+<h2 class="chapter">4 Uploading new samples to the fate suite<span class="pull-right"><a class="anchor hidden-xs" href="#Uploading-new-samples-to-the-fate-suite" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Uploading-new-samples-to-the-fate-suite" aria-hidden="true">TOC</a></span></h2>
 
 <p>If you need a sample uploaded send a mail to samples-request.
 </p>
@@ -293,17 +283,11 @@ rsync -vaL  --no-g --chmod=Dg+s,Duo+x,ug+rw,o+r,o-w,+X ~/fate-suite/ fate-suite.
 </pre></div>
 
 
-</div>
-<div class="chapter-level-extent" id="FATE-makefile-targets-and-variables">
-<h2 class="chapter"><span>5 FATE makefile targets and variables<a class="copiable-link" href="#FATE-makefile-targets-and-variables"> &para;</a></span></h2>
+<a name="FATE-makefile-targets-and-variables"></a>
+<h2 class="chapter">5 FATE makefile targets and variables<span class="pull-right"><a class="anchor hidden-xs" href="#FATE-makefile-targets-and-variables" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-FATE-makefile-targets-and-variables" aria-hidden="true">TOC</a></span></h2>
 
-<ul class="mini-toc">
-<li><a href="#Makefile-targets" accesskey="1">Makefile targets</a></li>
-<li><a href="#Makefile-variables" accesskey="2">Makefile variables</a></li>
-<li><a href="#Examples" accesskey="3">Examples</a></li>
-</ul>
-<div class="section-level-extent" id="Makefile-targets">
-<h3 class="section"><span>5.1 Makefile targets<a class="copiable-link" href="#Makefile-targets"> &para;</a></span></h3>
+<a name="Makefile-targets"></a>
+<h3 class="section">5.1 Makefile targets<span class="pull-right"><a class="anchor hidden-xs" href="#Makefile-targets" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Makefile-targets" aria-hidden="true">TOC</a></span></h3>
 
 <dl class="table">
 <dt><samp class="option">fate-rsync</samp></dt>
@@ -319,9 +303,8 @@ rsync -vaL  --no-g --chmod=Dg+s,Duo+x,ug+rw,o+r,o-w,+X ~/fate-suite/ fate-suite.
 </p></dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="Makefile-variables">
-<h3 class="section"><span>5.2 Makefile variables<a class="copiable-link" href="#Makefile-variables"> &para;</a></span></h3>
+<a name="Makefile-variables"></a>
+<h3 class="section">5.2 Makefile variables<span class="pull-right"><a class="anchor hidden-xs" href="#Makefile-variables" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Makefile-variables" aria-hidden="true">TOC</a></span></h3>
 
 <dl class="table">
 <dt><code class="env">V</code></dt>
@@ -384,15 +367,12 @@ fails.
 </dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="Examples">
-<h3 class="section"><span>5.3 Examples<a class="copiable-link" href="#Examples"> &para;</a></span></h3>
+<a name="Examples"></a>
+<h3 class="section">5.3 Examples<span class="pull-right"><a class="anchor hidden-xs" href="#Examples" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Examples" aria-hidden="true">TOC</a></span></h3>
 
 <div class="example">
 <pre class="example-preformatted">make V=1 SAMPLES=/var/fate/samples THREADS=2 CPUFLAGS=mmx fate
 </pre></div>
-</div>
-</div>
       <p style="font-size: small;">
         This document was generated using <a class="uref" href="https://www.gnu.org/software/texinfo/"><em class="emph">makeinfo</em></a>.
       </p>

@@ -17,7 +17,7 @@
       </h1>
 
 
-<div class="top-level-extent" id="SEC_Top">
+<a name="SEC_Top"></a>
 
 <div class="element-contents" id="SEC_Contents">
 <h2 class="contents-heading">Table of Contents</h2>
@@ -42,29 +42,20 @@
 </div>
 </div>
 
-<ul class="mini-toc">
-<li><a href="#Synopsis" accesskey="1">Synopsis</a></li>
-<li><a href="#Description" accesskey="2">Description</a></li>
-<li><a href="#Options" accesskey="3">Options</a></li>
-<li><a href="#See-Also" accesskey="4">See Also</a></li>
-<li><a href="#Authors" accesskey="5">Authors</a></li>
-</ul>
-<div class="chapter-level-extent" id="Synopsis">
-<h2 class="chapter"><span>1 Synopsis<a class="copiable-link" href="#Synopsis"> &para;</a></span></h2>
+<a name="Synopsis"></a>
+<h2 class="chapter">1 Synopsis<span class="pull-right"><a class="anchor hidden-xs" href="#Synopsis" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Synopsis" aria-hidden="true">TOC</a></span></h2>
 
 <p>ffplay [<var class="var">options</var>] [<samp class="file">input_url</samp>]
 </p>
-</div>
-<div class="chapter-level-extent" id="Description">
-<h2 class="chapter"><span>2 Description<a class="copiable-link" href="#Description"> &para;</a></span></h2>
+<a name="Description"></a>
+<h2 class="chapter">2 Description<span class="pull-right"><a class="anchor hidden-xs" href="#Description" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Description" aria-hidden="true">TOC</a></span></h2>
 
 <p>FFplay is a very simple and portable media player using the FFmpeg
 libraries and the SDL library. It is mostly used as a testbed for the
 various FFmpeg APIs.
 </p>
-</div>
-<div class="chapter-level-extent" id="Options">
-<h2 class="chapter"><span>3 Options<a class="copiable-link" href="#Options"> &para;</a></span></h2>
+<a name="Options"></a>
+<h2 class="chapter">3 Options<span class="pull-right"><a class="anchor hidden-xs" href="#Options" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Options" aria-hidden="true">TOC</a></span></h2>
 
 <p>All the numerical options, if not specified otherwise, accept a string
 representing a number as input, which may be followed by one of the SI
@@ -90,16 +81,8 @@ immediately before the option name (after the leading dash). E.g.
 </pre></div>
 <p>will load a filtergraph description from the file named <samp class="file">filter.script</samp>.
 </p>
-<a class="anchor" id="Stream-specifiers"></a><ul class="mini-toc">
-<li><a href="#Stream-specifiers-1" accesskey="1">Stream specifiers</a></li>
-<li><a href="#Generic-options" accesskey="2">Generic options</a></li>
-<li><a href="#AVOptions" accesskey="3">AVOptions</a></li>
-<li><a href="#Main-options" accesskey="4">Main options</a></li>
-<li><a href="#Advanced-options" accesskey="5">Advanced options</a></li>
-<li><a href="#While-playing" accesskey="6">While playing</a></li>
-</ul>
-<div class="section-level-extent" id="Stream-specifiers-1">
-<h3 class="section"><span>3.1 Stream specifiers<a class="copiable-link" href="#Stream-specifiers-1"> &para;</a></span></h3>
+<a class="anchor" id="Stream-specifiers"></a><a name="Stream-specifiers-1"></a>
+<h3 class="section">3.1 Stream specifiers<span class="pull-right"><a class="anchor hidden-xs" href="#Stream-specifiers-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Stream-specifiers-1" aria-hidden="true">TOC</a></span></h3>
 <p>Some options are applied per-stream, e.g. bitrate or codec. Stream specifiers
 are used to precisely specify which stream(s) a given option belongs to.
 </p>
@@ -161,7 +144,8 @@ are part of the program and match the <var class="var">additional_stream_specifi
 <dt><samp class="option">m:<var class="var">key</var>[:<var class="var">value</var>]</samp></dt>
 <dd><p>Matches streams with the metadata tag <var class="var">key</var> having the specified value. If
 <var class="var">value</var> is not given, matches streams that contain the given tag with any
-value.
+value. The colon character &rsquo;:&rsquo; in <var class="var">key</var> or <var class="var">value</var> needs to be
+backslash-escaped.
 </p></dd>
 <dt><samp class="option">disp:<var class="var">dispositions</var>[:<var class="var">additional_stream_specifier</var>]</samp></dt>
 <dd><p>Matches streams with the given disposition(s). <var class="var">dispositions</var> is a list of
@@ -177,9 +161,8 @@ input files.
 </p></dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="Generic-options">
-<h3 class="section"><span>3.2 Generic options<a class="copiable-link" href="#Generic-options"> &para;</a></span></h3>
+<a name="Generic-options"></a>
+<h3 class="section">3.2 Generic options<span class="pull-right"><a class="anchor hidden-xs" href="#Generic-options" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Generic-options" aria-hidden="true">TOC</a></span></h3>
 
 <p>These options are shared amongst the ff* tools.
 </p>
@@ -534,9 +517,8 @@ Default is INT_MAX.
 </p></dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="AVOptions">
-<h3 class="section"><span>3.3 AVOptions<a class="copiable-link" href="#AVOptions"> &para;</a></span></h3>
+<a name="AVOptions"></a>
+<h3 class="section">3.3 AVOptions<span class="pull-right"><a class="anchor hidden-xs" href="#AVOptions" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-AVOptions" aria-hidden="true">TOC</a></span></h3>
 
 <p>These options are provided directly by the libavformat, libavdevice and
 libavcodec libraries. To see the list of available AVOptions, use the
@@ -578,9 +560,8 @@ AVOptions, use <samp class="option">-option 0</samp>/<samp class="option">-optio
 prepending v/a/s to the options name is now obsolete and will be
 removed soon.
 </p>
-</div>
-<div class="section-level-extent" id="Main-options">
-<h3 class="section"><span>3.4 Main options<a class="copiable-link" href="#Main-options"> &para;</a></span></h3>
+<a name="Main-options"></a>
+<h3 class="section">3.4 Main options<span class="pull-right"><a class="anchor hidden-xs" href="#Main-options" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Main-options" aria-hidden="true">TOC</a></span></h3>
 
 <dl class="table">
 <dt><samp class="option">-x <var class="var">width</var></samp></dt>
@@ -699,9 +680,8 @@ sources and sinks).
 </p></dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="Advanced-options">
-<h3 class="section"><span>3.5 Advanced options<a class="copiable-link" href="#Advanced-options"> &para;</a></span></h3>
+<a name="Advanced-options"></a>
+<h3 class="section">3.5 Advanced options<span class="pull-right"><a class="anchor hidden-xs" href="#Advanced-options" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Advanced-options" aria-hidden="true">TOC</a></span></h3>
 <dl class="table">
 <dt><samp class="option">-stats</samp></dt>
 <dd><p>Print several playback statistics, in particular show the stream
@@ -812,9 +792,8 @@ automatically.
 </dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="While-playing">
-<h3 class="section"><span>3.6 While playing<a class="copiable-link" href="#While-playing"> &para;</a></span></h3>
+<a name="While-playing"></a>
+<h3 class="section">3.6 While playing<span class="pull-right"><a class="anchor hidden-xs" href="#While-playing" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-While-playing" aria-hidden="true">TOC</a></span></h3>
 
 <dl class="table">
 <dt><kbd class="key">q, ESC</kbd></dt>
@@ -891,10 +870,8 @@ Seek backward/forward 10 minutes.
 
 
 
-</div>
-</div>
-<div class="chapter-level-extent" id="See-Also">
-<h2 class="chapter"><span>4 See Also<a class="copiable-link" href="#See-Also"> &para;</a></span></h2>
+<a name="See-Also"></a>
+<h2 class="chapter">4 See Also<span class="pull-right"><a class="anchor hidden-xs" href="#See-Also" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-See-Also" aria-hidden="true">TOC</a></span></h2>
 
 <p><a class="url" href="ffplay-all.html">ffmpeg-all</a>,
 <a class="url" href="ffmpeg.html">ffmpeg</a>, <a class="url" href="ffprobe.html">ffprobe</a>,
@@ -909,9 +886,8 @@ Seek backward/forward 10 minutes.
 <a class="url" href="ffmpeg-filters.html">ffmpeg-filters</a>
 </p>
 
-</div>
-<div class="chapter-level-extent" id="Authors">
-<h2 class="chapter"><span>5 Authors<a class="copiable-link" href="#Authors"> &para;</a></span></h2>
+<a name="Authors"></a>
+<h2 class="chapter">5 Authors<span class="pull-right"><a class="anchor hidden-xs" href="#Authors" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Authors" aria-hidden="true">TOC</a></span></h2>
 
 <p>The FFmpeg developers.
 </p>
@@ -924,8 +900,6 @@ online repository at <a class="url" href="https://git.ffmpeg.org/ffmpeg">https:/
 <samp class="file">MAINTAINERS</samp> in the source code tree.
 </p>
 
-</div>
-</div>
       <p style="font-size: small;">
         This document was generated using <a class="uref" href="https://www.gnu.org/software/texinfo/"><em class="emph">makeinfo</em></a>.
       </p>

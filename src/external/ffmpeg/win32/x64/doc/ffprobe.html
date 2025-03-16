@@ -17,7 +17,7 @@
       </h1>
 
 
-<div class="top-level-extent" id="SEC_Top">
+<a name="SEC_Top"></a>
 
 <div class="element-contents" id="SEC_Contents">
 <h2 class="contents-heading">Table of Contents</h2>
@@ -50,23 +50,13 @@
 </div>
 </div>
 
-<ul class="mini-toc">
-<li><a href="#Synopsis" accesskey="1">Synopsis</a></li>
-<li><a href="#Description" accesskey="2">Description</a></li>
-<li><a href="#Options" accesskey="3">Options</a></li>
-<li><a href="#Writers" accesskey="4">Writers</a></li>
-<li><a href="#Timecode" accesskey="5">Timecode</a></li>
-<li><a href="#See-Also" accesskey="6">See Also</a></li>
-<li><a href="#Authors" accesskey="7">Authors</a></li>
-</ul>
-<div class="chapter-level-extent" id="Synopsis">
-<h2 class="chapter"><span>1 Synopsis<a class="copiable-link" href="#Synopsis"> &para;</a></span></h2>
+<a name="Synopsis"></a>
+<h2 class="chapter">1 Synopsis<span class="pull-right"><a class="anchor hidden-xs" href="#Synopsis" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Synopsis" aria-hidden="true">TOC</a></span></h2>
 
 <p>ffprobe [<var class="var">options</var>] <samp class="file">input_url</samp>
 </p>
-</div>
-<div class="chapter-level-extent" id="Description">
-<h2 class="chapter"><span>2 Description<a class="copiable-link" href="#Description"> &para;</a></span></h2>
+<a name="Description"></a>
+<h2 class="chapter">2 Description<span class="pull-right"><a class="anchor hidden-xs" href="#Description" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Description" aria-hidden="true">TOC</a></span></h2>
 
 <p>ffprobe gathers information from multimedia streams and prints it in
 human- and machine-readable fashion.
@@ -103,9 +93,8 @@ and printed in the corresponding &quot;FORMAT&quot;, &quot;STREAM&quot;, &quot;S
 or &quot;PROGRAM_STREAM&quot; section.
 </p>
 
-</div>
-<div class="chapter-level-extent" id="Options">
-<h2 class="chapter"><span>3 Options<a class="copiable-link" href="#Options"> &para;</a></span></h2>
+<a name="Options"></a>
+<h2 class="chapter">3 Options<span class="pull-right"><a class="anchor hidden-xs" href="#Options" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Options" aria-hidden="true">TOC</a></span></h2>
 
 <p>All the numerical options, if not specified otherwise, accept a string
 representing a number as input, which may be followed by one of the SI
@@ -131,14 +120,8 @@ immediately before the option name (after the leading dash). E.g.
 </pre></div>
 <p>will load a filtergraph description from the file named <samp class="file">filter.script</samp>.
 </p>
-<a class="anchor" id="Stream-specifiers"></a><ul class="mini-toc">
-<li><a href="#Stream-specifiers-1" accesskey="1">Stream specifiers</a></li>
-<li><a href="#Generic-options" accesskey="2">Generic options</a></li>
-<li><a href="#AVOptions" accesskey="3">AVOptions</a></li>
-<li><a href="#Main-options" accesskey="4">Main options</a></li>
-</ul>
-<div class="section-level-extent" id="Stream-specifiers-1">
-<h3 class="section"><span>3.1 Stream specifiers<a class="copiable-link" href="#Stream-specifiers-1"> &para;</a></span></h3>
+<a class="anchor" id="Stream-specifiers"></a><a name="Stream-specifiers-1"></a>
+<h3 class="section">3.1 Stream specifiers<span class="pull-right"><a class="anchor hidden-xs" href="#Stream-specifiers-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Stream-specifiers-1" aria-hidden="true">TOC</a></span></h3>
 <p>Some options are applied per-stream, e.g. bitrate or codec. Stream specifiers
 are used to precisely specify which stream(s) a given option belongs to.
 </p>
@@ -200,7 +183,8 @@ are part of the program and match the <var class="var">additional_stream_specifi
 <dt><samp class="option">m:<var class="var">key</var>[:<var class="var">value</var>]</samp></dt>
 <dd><p>Matches streams with the metadata tag <var class="var">key</var> having the specified value. If
 <var class="var">value</var> is not given, matches streams that contain the given tag with any
-value.
+value. The colon character &rsquo;:&rsquo; in <var class="var">key</var> or <var class="var">value</var> needs to be
+backslash-escaped.
 </p></dd>
 <dt><samp class="option">disp:<var class="var">dispositions</var>[:<var class="var">additional_stream_specifier</var>]</samp></dt>
 <dd><p>Matches streams with the given disposition(s). <var class="var">dispositions</var> is a list of
@@ -216,9 +200,8 @@ input files.
 </p></dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="Generic-options">
-<h3 class="section"><span>3.2 Generic options<a class="copiable-link" href="#Generic-options"> &para;</a></span></h3>
+<a name="Generic-options"></a>
+<h3 class="section">3.2 Generic options<span class="pull-right"><a class="anchor hidden-xs" href="#Generic-options" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Generic-options" aria-hidden="true">TOC</a></span></h3>
 
 <p>These options are shared amongst the ff* tools.
 </p>
@@ -573,9 +556,8 @@ Default is INT_MAX.
 </p></dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="AVOptions">
-<h3 class="section"><span>3.3 AVOptions<a class="copiable-link" href="#AVOptions"> &para;</a></span></h3>
+<a name="AVOptions"></a>
+<h3 class="section">3.3 AVOptions<span class="pull-right"><a class="anchor hidden-xs" href="#AVOptions" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-AVOptions" aria-hidden="true">TOC</a></span></h3>
 
 <p>These options are provided directly by the libavformat, libavdevice and
 libavcodec libraries. To see the list of available AVOptions, use the
@@ -617,9 +599,8 @@ AVOptions, use <samp class="option">-option 0</samp>/<samp class="option">-optio
 prepending v/a/s to the options name is now obsolete and will be
 removed soon.
 </p>
-</div>
-<div class="section-level-extent" id="Main-options">
-<h3 class="section"><span>3.4 Main options<a class="copiable-link" href="#Main-options"> &para;</a></span></h3>
+<a name="Main-options"></a>
+<h3 class="section">3.4 Main options<span class="pull-right"><a class="anchor hidden-xs" href="#Main-options" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Main-options" aria-hidden="true">TOC</a></span></h3>
 
 <dl class="table">
 <dt><samp class="option">-f <var class="var">format</var></samp></dt>
@@ -954,10 +935,8 @@ to stdout.
 </dd>
 </dl>
 
-</div>
-</div>
-<div class="chapter-level-extent" id="Writers">
-<h2 class="chapter"><span>4 Writers<a class="copiable-link" href="#Writers"> &para;</a></span></h2>
+<a name="Writers"></a>
+<h2 class="chapter">4 Writers<span class="pull-right"><a class="anchor hidden-xs" href="#Writers" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Writers" aria-hidden="true">TOC</a></span></h2>
 
 <p>A writer defines the output format adopted by <code class="command">ffprobe</code>, and will be
 used for printing all the parts of the output.
@@ -1006,16 +985,8 @@ strings.
 
 <p>A description of the currently available writers follows.
 </p>
-<ul class="mini-toc">
-<li><a href="#default" accesskey="1">default</a></li>
-<li><a href="#compact_002c-csv" accesskey="2">compact, csv</a></li>
-<li><a href="#flat" accesskey="3">flat</a></li>
-<li><a href="#ini" accesskey="4">ini</a></li>
-<li><a href="#json" accesskey="5">json</a></li>
-<li><a href="#xml" accesskey="6">xml</a></li>
-</ul>
-<div class="section-level-extent" id="default">
-<h3 class="section"><span>4.1 default<a class="copiable-link" href="#default"> &para;</a></span></h3>
+<a name="default"></a>
+<h3 class="section">4.1 default<span class="pull-right"><a class="anchor hidden-xs" href="#default" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-default" aria-hidden="true">TOC</a></span></h3>
 <p>Default format.
 </p>
 <p>Print each section in the form:
@@ -1045,9 +1016,8 @@ Default value is 0.
 </p></dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="compact_002c-csv">
-<h3 class="section"><span>4.2 compact, csv<a class="copiable-link" href="#compact_002c-csv"> &para;</a></span></h3>
+<a name="compact_002c-csv"></a>
+<h3 class="section">4.2 compact, csv<span class="pull-right"><a class="anchor hidden-xs" href="#compact_002c-csv" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-compact_002c-csv" aria-hidden="true">TOC</a></span></h3>
 <p>Compact and CSV format.
 </p>
 <p>The <code class="code">csv</code> writer is equivalent to <code class="code">compact</code>, but supports
@@ -1112,9 +1082,8 @@ containing a newline (&lsquo;<samp class="samp">\n</samp>&rsquo;), a carriage re
 </dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="flat">
-<h3 class="section"><span>4.3 flat<a class="copiable-link" href="#flat"> &para;</a></span></h3>
+<a name="flat"></a>
+<h3 class="section">4.3 flat<span class="pull-right"><a class="anchor hidden-xs" href="#flat" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-flat" aria-hidden="true">TOC</a></span></h3>
 <p>Flat format.
 </p>
 <p>A free-form output where each line contains an explicit key=value, such as
@@ -1142,9 +1111,8 @@ chapter. A value of 0 will disable this behavior.
 </p></dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="ini">
-<h3 class="section"><span>4.4 ini<a class="copiable-link" href="#ini"> &para;</a></span></h3>
+<a name="ini"></a>
+<h3 class="section">4.4 ini<span class="pull-right"><a class="anchor hidden-xs" href="#ini" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-ini" aria-hidden="true">TOC</a></span></h3>
 <p>INI format output.
 </p>
 <p>Print output in an INI based format.
@@ -1178,9 +1146,8 @@ chapter. A value of 0 will disable this behavior.
 </p></dd>
 </dl>
 
-</div>
-<div class="section-level-extent" id="json">
-<h3 class="section"><span>4.5 json<a class="copiable-link" href="#json"> &para;</a></span></h3>
+<a name="json"></a>
+<h3 class="section">4.5 json<span class="pull-right"><a class="anchor hidden-xs" href="#json" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-json" aria-hidden="true">TOC</a></span></h3>
 <p>JSON based format.
 </p>
 <p>Each section is printed using JSON notation.
@@ -1196,9 +1163,8 @@ printed on a single line. Default value is 0.
 
 <p>For more information about JSON, see <a class="url" href="http://www.json.org/">http://www.json.org/</a>.
 </p>
-</div>
-<div class="section-level-extent" id="xml">
-<h3 class="section"><span>4.6 xml<a class="copiable-link" href="#xml"> &para;</a></span></h3>
+<a name="xml"></a>
+<h3 class="section">4.6 xml<span class="pull-right"><a class="anchor hidden-xs" href="#xml" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-xml" aria-hidden="true">TOC</a></span></h3>
 <p>XML based format.
 </p>
 <p>The XML output is described in the XML schema description file
@@ -1233,10 +1199,8 @@ This option automatically sets <samp class="option">fully_qualified</samp> to 1.
 <p>For more information about the XML format, see
 <a class="url" href="https://www.w3.org/XML/">https://www.w3.org/XML/</a>.
 </p>
-</div>
-</div>
-<div class="chapter-level-extent" id="Timecode">
-<h2 class="chapter"><span>5 Timecode<a class="copiable-link" href="#Timecode"> &para;</a></span></h2>
+<a name="Timecode"></a>
+<h2 class="chapter">5 Timecode<span class="pull-right"><a class="anchor hidden-xs" href="#Timecode" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Timecode" aria-hidden="true">TOC</a></span></h2>
 
 <p><code class="command">ffprobe</code> supports Timecode extraction:
 </p>
@@ -1253,9 +1217,8 @@ stream metadata (<samp class="option">-show_streams</samp>, see <var class="var"
 </li></ul>
 
 
-</div>
-<div class="chapter-level-extent" id="See-Also">
-<h2 class="chapter"><span>6 See Also<a class="copiable-link" href="#See-Also"> &para;</a></span></h2>
+<a name="See-Also"></a>
+<h2 class="chapter">6 See Also<span class="pull-right"><a class="anchor hidden-xs" href="#See-Also" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-See-Also" aria-hidden="true">TOC</a></span></h2>
 
 <p><a class="url" href="ffprobe-all.html">ffprobe-all</a>,
 <a class="url" href="ffmpeg.html">ffmpeg</a>, <a class="url" href="ffplay.html">ffplay</a>,
@@ -1270,9 +1233,8 @@ stream metadata (<samp class="option">-show_streams</samp>, see <var class="var"
 <a class="url" href="ffmpeg-filters.html">ffmpeg-filters</a>
 </p>
 
-</div>
-<div class="chapter-level-extent" id="Authors">
-<h2 class="chapter"><span>7 Authors<a class="copiable-link" href="#Authors"> &para;</a></span></h2>
+<a name="Authors"></a>
+<h2 class="chapter">7 Authors<span class="pull-right"><a class="anchor hidden-xs" href="#Authors" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Authors" aria-hidden="true">TOC</a></span></h2>
 
 <p>The FFmpeg developers.
 </p>
@@ -1285,8 +1247,6 @@ online repository at <a class="url" href="https://git.ffmpeg.org/ffmpeg">https:/
 <samp class="file">MAINTAINERS</samp> in the source code tree.
 </p>
 
-</div>
-</div>
       <p style="font-size: small;">
         This document was generated using <a class="uref" href="https://www.gnu.org/software/texinfo/"><em class="emph">makeinfo</em></a>.
       </p>

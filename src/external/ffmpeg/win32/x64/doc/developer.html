@@ -17,7 +17,7 @@
       </h1>
 
 
-<div class="top-level-extent" id="SEC_Top">
+<a name="SEC_Top"></a>
 
 <div class="element-contents" id="SEC_Contents">
 <h2 class="contents-heading">Table of Contents</h2>
@@ -65,28 +65,22 @@
     <li><a id="toc-Visualizing-Test-Coverage" href="#Visualizing-Test-Coverage">8.2 Visualizing Test Coverage</a></li>
     <li><a id="toc-Using-Valgrind" href="#Using-Valgrind">8.3 Using Valgrind</a></li>
   </ul></li>
-  <li><a id="toc-Release-process-1" href="#Release-process-1">9 Release process</a>
+  <li><a id="toc-Maintenance-process" href="#Maintenance-process">9 Maintenance process</a>
   <ul class="toc-numbered-mark">
-    <li><a id="toc-Criteria-for-Point-Releases-1" href="#Criteria-for-Point-Releases-1">9.1 Criteria for Point Releases</a></li>
-    <li><a id="toc-Release-Checklist" href="#Release-Checklist">9.2 Release Checklist</a></li>
+    <li><a id="toc-MAINTAINERS-1" href="#MAINTAINERS-1">9.1 MAINTAINERS</a></li>
+    <li><a id="toc-Becoming-a-maintainer-1" href="#Becoming-a-maintainer-1">9.2 Becoming a maintainer</a></li>
+  </ul></li>
+  <li><a id="toc-Release-process-1" href="#Release-process-1">10 Release process</a>
+  <ul class="toc-numbered-mark">
+    <li><a id="toc-Criteria-for-Point-Releases-1" href="#Criteria-for-Point-Releases-1">10.1 Criteria for Point Releases</a></li>
+    <li><a id="toc-Release-Checklist" href="#Release-Checklist">10.2 Release Checklist</a></li>
   </ul></li>
 </ul>
 </div>
 </div>
 
-<ul class="mini-toc">
-<li><a href="#Introduction" accesskey="1">Introduction</a></li>
-<li><a href="#Coding-Rules-1" accesskey="2">Coding Rules</a></li>
-<li><a href="#Development-Policy-1" accesskey="3">Development Policy</a></li>
-<li><a href="#Submitting-patches-1" accesskey="4">Submitting patches</a></li>
-<li><a href="#New-codecs-or-formats-checklist" accesskey="5">New codecs or formats checklist</a></li>
-<li><a href="#Patch-submission-checklist" accesskey="6">Patch submission checklist</a></li>
-<li><a href="#Patch-review-process" accesskey="7">Patch review process</a></li>
-<li><a href="#Regression-tests-1" accesskey="8">Regression tests</a></li>
-<li><a href="#Release-process-1" accesskey="9">Release process</a></li>
-</ul>
-<div class="chapter-level-extent" id="Introduction">
-<h2 class="chapter"><span>1 Introduction<a class="copiable-link" href="#Introduction"> &para;</a></span></h2>
+<a name="Introduction"></a>
+<h2 class="chapter">1 Introduction<span class="pull-right"><a class="anchor hidden-xs" href="#Introduction" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Introduction" aria-hidden="true">TOC</a></span></h2>
 
 <p>This text is concerned with the development <em class="emph">of</em> FFmpeg itself. Information
 on using the FFmpeg libraries in other programs can be found elsewhere, e.g. in:
@@ -121,19 +115,11 @@ should comply with the <a class="ref" href="#Development-Policy">Development Pol
 The developer making the commit and the author are responsible for their changes
 and should try to fix issues their commit causes.
 </p>
-<a class="anchor" id="Coding-Rules"></a></div>
-<div class="chapter-level-extent" id="Coding-Rules-1">
-<h2 class="chapter"><span>2 Coding Rules<a class="copiable-link" href="#Coding-Rules-1"> &para;</a></span></h2>
+<a class="anchor" id="Coding-Rules"></a><a name="Coding-Rules-1"></a>
+<h2 class="chapter">2 Coding Rules<span class="pull-right"><a class="anchor hidden-xs" href="#Coding-Rules-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Coding-Rules-1" aria-hidden="true">TOC</a></span></h2>
 
-<ul class="mini-toc">
-<li><a href="#Language" accesskey="1">Language</a></li>
-<li><a href="#Code-formatting-conventions" accesskey="2">Code formatting conventions</a></li>
-<li><a href="#Comments" accesskey="3">Comments</a></li>
-<li><a href="#Naming-conventions-1" accesskey="4">Naming conventions</a></li>
-<li><a href="#Miscellaneous-conventions" accesskey="5">Miscellaneous conventions</a></li>
-</ul>
-<div class="section-level-extent" id="Language">
-<h3 class="section"><span>2.1 Language<a class="copiable-link" href="#Language"> &para;</a></span></h3>
+<a name="Language"></a>
+<h3 class="section">2.1 Language<span class="pull-right"><a class="anchor hidden-xs" href="#Language" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Language" aria-hidden="true">TOC</a></span></h3>
 
 <p>FFmpeg is mainly programmed in the ISO C11 language, except for the public
 headers which must stay C99 compatible.
@@ -151,12 +137,8 @@ the extension.
 </li><li>mixed statements and declarations.
 </li></ul>
 
-<ul class="mini-toc">
-<li><a href="#SIMD_002fDSP-1" accesskey="1">SIMD/DSP</a></li>
-<li><a href="#Other-languages" accesskey="2">Other languages</a></li>
-</ul>
-<div class="subsection-level-extent" id="SIMD_002fDSP-1">
-<h4 class="subsection"><span>2.1.1 SIMD/DSP<a class="copiable-link" href="#SIMD_002fDSP-1"> &para;</a></span></h4>
+<a name="SIMD_002fDSP-1"></a>
+<h4 class="subsection">2.1.1 SIMD/DSP<span class="pull-right"><a class="anchor hidden-xs" href="#SIMD_002fDSP-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-SIMD_002fDSP-1" aria-hidden="true">TOC</a></span></h4>
 <a class="anchor" id="SIMD_002fDSP"></a>
 <p>As modern compilers are unable to generate efficient SIMD or other
 performance-critical DSP code from plain C, handwritten assembly is used.
@@ -178,9 +160,8 @@ pointer; the function in question is then always called through this pointer.
 <samp class="file">tests/checkasm</samp>. All new assembly should come with <code class="code">checkasm</code> tests;
 adding tests for existing assembly that lacks them is also strongly encouraged.
 </p>
-</div>
-<div class="subsection-level-extent" id="Other-languages">
-<h4 class="subsection"><span>2.1.2 Other languages<a class="copiable-link" href="#Other-languages"> &para;</a></span></h4>
+<a name="Other-languages"></a>
+<h4 class="subsection">2.1.2 Other languages<span class="pull-right"><a class="anchor hidden-xs" href="#Other-languages" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Other-languages" aria-hidden="true">TOC</a></span></h4>
 
 <p>Other languages than C may be used in special cases:
 </p><ul class="itemize mark-bullet">
@@ -191,10 +172,8 @@ typically applies to code that needs to be inlined.
 </li><li>Objective-C where required for interacting with macOS-specific interfaces.
 </li></ul>
 
-</div>
-</div>
-<div class="section-level-extent" id="Code-formatting-conventions">
-<h3 class="section"><span>2.2 Code formatting conventions<a class="copiable-link" href="#Code-formatting-conventions"> &para;</a></span></h3>
+<a name="Code-formatting-conventions"></a>
+<h3 class="section">2.2 Code formatting conventions<span class="pull-right"><a class="anchor hidden-xs" href="#Code-formatting-conventions" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Code-formatting-conventions" aria-hidden="true">TOC</a></span></h3>
 
 <p>There are the following guidelines regarding the indentation in files:
 </p>
@@ -212,12 +191,8 @@ and only if this improves readability.
 </li></ul>
 <p>The presentation is one inspired by &rsquo;indent -i4 -kr -nut&rsquo;.
 </p>
-<ul class="mini-toc">
-<li><a href="#Vim-configuration" accesskey="1">Vim configuration</a></li>
-<li><a href="#Emacs-configuration" accesskey="2">Emacs configuration</a></li>
-</ul>
-<div class="subsection-level-extent" id="Vim-configuration">
-<h4 class="subsection"><span>2.2.1 Vim configuration<a class="copiable-link" href="#Vim-configuration"> &para;</a></span></h4>
+<a name="Vim-configuration"></a>
+<h4 class="subsection">2.2.1 Vim configuration<span class="pull-right"><a class="anchor hidden-xs" href="#Vim-configuration" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Vim-configuration" aria-hidden="true">TOC</a></span></h4>
 <p>In order to configure Vim to follow FFmpeg formatting conventions, paste
 the following snippet into your <samp class="file">.vimrc</samp>:
 </p><div class="example">
@@ -236,9 +211,8 @@ match ForbiddenWhitespace /\s\+$\|\t/
 autocmd InsertEnter * match ForbiddenWhitespace /\t\|\s\+\%#\@&lt;!$/
 </pre></div>
 
-</div>
-<div class="subsection-level-extent" id="Emacs-configuration">
-<h4 class="subsection"><span>2.2.2 Emacs configuration<a class="copiable-link" href="#Emacs-configuration"> &para;</a></span></h4>
+<a name="Emacs-configuration"></a>
+<h4 class="subsection">2.2.2 Emacs configuration<span class="pull-right"><a class="anchor hidden-xs" href="#Emacs-configuration" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Emacs-configuration" aria-hidden="true">TOC</a></span></h4>
 <p>For Emacs, add these roughly equivalent lines to your <samp class="file">.emacs.d/init.el</samp>:
 </p><div class="example lisp">
 <pre class="lisp-preformatted">(c-add-style &quot;ffmpeg&quot;
@@ -253,10 +227,8 @@ autocmd InsertEnter * match ForbiddenWhitespace /\t\|\s\+\%#\@&lt;!$/
 (setq c-default-style &quot;ffmpeg&quot;)
 </pre></div>
 
-</div>
-</div>
-<div class="section-level-extent" id="Comments">
-<h3 class="section"><span>2.3 Comments<a class="copiable-link" href="#Comments"> &para;</a></span></h3>
+<a name="Comments"></a>
+<h3 class="section">2.3 Comments<span class="pull-right"><a class="anchor hidden-xs" href="#Comments" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Comments" aria-hidden="true">TOC</a></span></h3>
 <p>Use the JavaDoc/Doxygen  format (see examples below) so that code documentation
 can be generated automatically. All nontrivial functions should have a comment
 above them explaining what the function does, even if it is just one sentence.
@@ -296,9 +268,8 @@ int myfunc(int my_parameter)
 ...
 </pre></div>
 
-<a class="anchor" id="Naming-conventions"></a></div>
-<div class="section-level-extent" id="Naming-conventions-1">
-<h3 class="section"><span>2.4 Naming conventions<a class="copiable-link" href="#Naming-conventions-1"> &para;</a></span></h3>
+<a class="anchor" id="Naming-conventions"></a><a name="Naming-conventions-1"></a>
+<h3 class="section">2.4 Naming conventions<span class="pull-right"><a class="anchor hidden-xs" href="#Naming-conventions-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Naming-conventions-1" aria-hidden="true">TOC</a></span></h3>
 
 <p>Names of functions, variables, and struct members must be lowercase, using
 underscores (_) to separate words. For example, &lsquo;<samp class="samp">avfilter_get_video_buffer</samp>&rsquo;
@@ -347,50 +318,40 @@ letter as they are reserved by the C standard. Names starting with <code class="
 are reserved at the file level and may not be used for externally visible
 symbols. If in doubt, just avoid names starting with <code class="code">_</code> altogether.
 </p>
-</div>
-<div class="section-level-extent" id="Miscellaneous-conventions">
-<h3 class="section"><span>2.5 Miscellaneous conventions<a class="copiable-link" href="#Miscellaneous-conventions"> &para;</a></span></h3>
+<a name="Miscellaneous-conventions"></a>
+<h3 class="section">2.5 Miscellaneous conventions<span class="pull-right"><a class="anchor hidden-xs" href="#Miscellaneous-conventions" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Miscellaneous-conventions" aria-hidden="true">TOC</a></span></h3>
 
 <ul class="itemize mark-bullet">
 <li>Casts should be used only when necessary. Unneeded parentheses
 should also be avoided if they don&rsquo;t make the code easier to understand.
 </li></ul>
 
-<a class="anchor" id="Development-Policy"></a></div>
-</div>
-<div class="chapter-level-extent" id="Development-Policy-1">
-<h2 class="chapter"><span>3 Development Policy<a class="copiable-link" href="#Development-Policy-1"> &para;</a></span></h2>
+<a class="anchor" id="Development-Policy"></a><a name="Development-Policy-1"></a>
+<h2 class="chapter">3 Development Policy<span class="pull-right"><a class="anchor hidden-xs" href="#Development-Policy-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Development-Policy-1" aria-hidden="true">TOC</a></span></h2>
 
-<ul class="mini-toc">
-<li><a href="#Code-behaviour" accesskey="1">Code behaviour</a></li>
-<li><a href="#Patches_002fCommitting" accesskey="2">Patches/Committing</a></li>
-<li><a href="#Code" accesskey="3">Code</a></li>
-<li><a href="#Library-public-interfaces" accesskey="4">Library public interfaces</a></li>
-<li><a href="#Documentation_002fOther" accesskey="5">Documentation/Other</a></li>
-</ul>
-<div class="section-level-extent" id="Code-behaviour">
-<h3 class="section"><span>3.1 Code behaviour<a class="copiable-link" href="#Code-behaviour"> &para;</a></span></h3>
+<a name="Code-behaviour"></a>
+<h3 class="section">3.1 Code behaviour<span class="pull-right"><a class="anchor hidden-xs" href="#Code-behaviour" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Code-behaviour" aria-hidden="true">TOC</a></span></h3>
 
-<h4 class="subheading" id="Correctness"><span>Correctness<a class="copiable-link" href="#Correctness"> &para;</a></span></h4>
+<a name="Correctness"></a>
 <p>The code must be valid. It must not crash, abort, access invalid pointers, leak
 memory, cause data races or signed integer overflow, or otherwise cause
 undefined behaviour. Error codes should be checked and, when applicable,
 forwarded to the caller.
 </p>
-<h4 class="subheading" id="Thread_002d-and-library_002dsafety"><span>Thread- and library-safety<a class="copiable-link" href="#Thread_002d-and-library_002dsafety"> &para;</a></span></h4>
+<a name="Thread_002d-and-library_002dsafety"></a>
 <p>Our libraries may be called by multiple independent callers in the same process.
 These calls may happen from any number of threads and the different call sites
 may not be aware of each other - e.g. a user program may be calling our
 libraries directly, and use one or more libraries that also call our libraries.
 The code must behave correctly under such conditions.
 </p>
-<h4 class="subheading" id="Robustness"><span>Robustness<a class="copiable-link" href="#Robustness"> &para;</a></span></h4>
+<a name="Robustness"></a>
 <p>The code must treat as untrusted any bytestream received from a caller or read
 from a file, network, etc. It must not misbehave when arbitrary data is sent to
 it - typically it should print an error message and return
 <code class="code">AVERROR_INVALIDDATA</code> on encountering invalid input data.
 </p>
-<h4 class="subheading" id="Memory-allocation"><span>Memory allocation<a class="copiable-link" href="#Memory-allocation"> &para;</a></span></h4>
+<a name="Memory-allocation"></a>
 <p>The code must use the <code class="code">av_malloc()</code> family of functions from
 <samp class="file">libavutil/mem.h</samp> to perform all memory allocation, except in special cases
 (e.g. when interacting with an external library that requires a specific
@@ -400,15 +361,14 @@ allocator to be used).
 failure. A common mistake is that error paths leak memory - make sure that does
 not happen.
 </p>
-<h4 class="subheading" id="stdio"><span>stdio<a class="copiable-link" href="#stdio"> &para;</a></span></h4>
+<a name="stdio"></a>
 <p>Our libraries must not access the stdio streams stdin/stdout/stderr directly
 (e.g. via <code class="code">printf()</code> family of functions), as that is not library-safe. For
 logging, use <code class="code">av_log()</code>.
 </p>
-</div>
-<div class="section-level-extent" id="Patches_002fCommitting">
-<h3 class="section"><span>3.2 Patches/Committing<a class="copiable-link" href="#Patches_002fCommitting"> &para;</a></span></h3>
-<h4 class="subheading" id="Licenses-for-patches-must-be-compatible-with-FFmpeg_002e"><span>Licenses for patches must be compatible with FFmpeg.<a class="copiable-link" href="#Licenses-for-patches-must-be-compatible-with-FFmpeg_002e"> &para;</a></span></h4>
+<a name="Patches_002fCommitting"></a>
+<h3 class="section">3.2 Patches/Committing<span class="pull-right"><a class="anchor hidden-xs" href="#Patches_002fCommitting" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Patches_002fCommitting" aria-hidden="true">TOC</a></span></h3>
+<a name="Licenses-for-patches-must-be-compatible-with-FFmpeg_002e"></a>
 <p>Contributions should be licensed under the
 <a class="uref" href="http://www.gnu.org/licenses/lgpl-2.1.html">LGPL 2.1</a>,
 including an &quot;or any later version&quot; clause, or, if you prefer
@@ -421,7 +381,7 @@ preferred.
 If you add a new file, give it a proper license header. Do not copy and
 paste it from a random place, use an existing file as template.
 </p>
-<h4 class="subheading" id="You-must-not-commit-code-which-breaks-FFmpeg_0021"><span>You must not commit code which breaks FFmpeg!<a class="copiable-link" href="#You-must-not-commit-code-which-breaks-FFmpeg_0021"> &para;</a></span></h4>
+<a name="You-must-not-commit-code-which-breaks-FFmpeg_0021"></a>
 <p>This means unfinished code which is enabled and breaks compilation,
 or compiles but does not work/breaks the regression tests. Code which
 is unfinished but disabled may be permitted under-circumstances, like
@@ -429,7 +389,7 @@ missing samples or an implementation with a small subset of features.
 Always check the mailing list for any reviewers with issues and test
 FATE before you push.
 </p>
-<h4 class="subheading" id="Commit-messages"><span>Commit messages<a class="copiable-link" href="#Commit-messages"> &para;</a></span></h4>
+<a name="Commit-messages"></a>
 <p>Commit messages are highly important tools for informing other developers on
 what a given change does and why. Every commit must always have a properly
 filled out commit message with the following format:
@@ -448,14 +408,14 @@ are not acceptable.
 <p>When applying patches that have been discussed at length on the mailing list,
 reference the thread in the commit message.
 </p>
-<h4 class="subheading" id="Testing-must-be-adequate-but-not-excessive_002e"><span>Testing must be adequate but not excessive.<a class="copiable-link" href="#Testing-must-be-adequate-but-not-excessive_002e"> &para;</a></span></h4>
+<a name="Testing-must-be-adequate-but-not-excessive_002e"></a>
 <p>If it works for you, others, and passes FATE then it should be OK to commit
 it, provided it fits the other committing criteria. You should not worry about
 over-testing things. If your code has problems (portability, triggers
 compiler bugs, unusual environment etc) they will be reported and eventually
 fixed.
 </p>
-<h4 class="subheading" id="Do-not-commit-unrelated-changes-together_002e"><span>Do not commit unrelated changes together.<a class="copiable-link" href="#Do-not-commit-unrelated-changes-together_002e"> &para;</a></span></h4>
+<a name="Do-not-commit-unrelated-changes-together_002e"></a>
 <p>They should be split them into self-contained pieces. Also do not forget
 that if part B depends on part A, but A does not depend on B, then A can
 and should be committed first and separate from B. Keeping changes well
@@ -465,7 +425,7 @@ later on.
 Also if you have doubts about splitting or not splitting, do not hesitate to
 ask/discuss it on the developer mailing list.
 </p>
-<h4 class="subheading" id="Cosmetic-changes-should-be-kept-in-separate-patches_002e"><span>Cosmetic changes should be kept in separate patches.<a class="copiable-link" href="#Cosmetic-changes-should-be-kept-in-separate-patches_002e"> &para;</a></span></h4>
+<a name="Cosmetic-changes-should-be-kept-in-separate-patches_002e"></a>
 <p>We refuse source indentation and other cosmetic changes if they are mixed
 with functional changes, such commits will be rejected and removed. Every
 developer has his own indentation style, you should not change it. Of course
@@ -479,27 +439,26 @@ changes.
 then either do NOT change the indentation of the inner part within (do not
 move it to the right)! or do so in a separate commit
 </p>
-<h4 class="subheading" id="Credit-the-author-of-the-patch_002e"><span>Credit the author of the patch.<a class="copiable-link" href="#Credit-the-author-of-the-patch_002e"> &para;</a></span></h4>
+<a name="Credit-the-author-of-the-patch_002e"></a>
 <p>Make sure the author of the commit is set correctly. (see git commit &ndash;author)
 If you apply a patch, send an
 answer to ffmpeg-devel (or wherever you got the patch from) saying that
 you applied the patch.
 </p>
-<h4 class="subheading" id="Credit-any-researchers"><span>Credit any researchers<a class="copiable-link" href="#Credit-any-researchers"> &para;</a></span></h4>
+<a name="Credit-any-researchers"></a>
 <p>If a commit/patch fixes an issues found by some researcher, always credit the
 researcher in the commit message for finding/reporting the issue.
 </p>
-<h4 class="subheading" id="Always-wait-long-enough-before-pushing-changes"><span>Always wait long enough before pushing changes<a class="copiable-link" href="#Always-wait-long-enough-before-pushing-changes"> &para;</a></span></h4>
+<a name="Always-wait-long-enough-before-pushing-changes"></a>
 <p>Do NOT commit to code actively maintained by others without permission.
 Send a patch to ffmpeg-devel. If no one answers within a reasonable
 time-frame (12h for build failures and security fixes, 3 days small changes,
 1 week for big patches) then commit your patch if you think it is OK.
 Also note, the maintainer can simply ask for more time to review!
 </p>
-</div>
-<div class="section-level-extent" id="Code">
-<h3 class="section"><span>3.3 Code<a class="copiable-link" href="#Code"> &para;</a></span></h3>
-<h4 class="subheading" id="Warnings-for-correct-code-may-be-disabled-if-there-is-no-other-option_002e"><span>Warnings for correct code may be disabled if there is no other option.<a class="copiable-link" href="#Warnings-for-correct-code-may-be-disabled-if-there-is-no-other-option_002e"> &para;</a></span></h4>
+<a name="Code"></a>
+<h3 class="section">3.3 Code<span class="pull-right"><a class="anchor hidden-xs" href="#Code" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Code" aria-hidden="true">TOC</a></span></h3>
+<a name="Warnings-for-correct-code-may-be-disabled-if-there-is-no-other-option_002e"></a>
 <p>Compiler warnings indicate potential bugs or code with bad style. If a type of
 warning always points to correct and clean code, that warning should
 be disabled, not the code changed.
@@ -508,9 +467,8 @@ If it is a bug, the bug has to be fixed. If it is not, the code should
 be changed to not generate a warning unless that causes a slowdown
 or obfuscates the code.
 </p>
-</div>
-<div class="section-level-extent" id="Library-public-interfaces">
-<h3 class="section"><span>3.4 Library public interfaces<a class="copiable-link" href="#Library-public-interfaces"> &para;</a></span></h3>
+<a name="Library-public-interfaces"></a>
+<h3 class="section">3.4 Library public interfaces<span class="pull-right"><a class="anchor hidden-xs" href="#Library-public-interfaces" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Library-public-interfaces" aria-hidden="true">TOC</a></span></h3>
 <p>Every library in FFmpeg provides a set of public APIs in its installed headers,
 which are those listed in the variable <code class="code">HEADERS</code> in that library&rsquo;s
 <samp class="file">Makefile</samp>. All identifiers defined in those headers (except for those
@@ -532,19 +490,14 @@ with a build of any later version (re-linking the user binary in the static
 case) without breaking any valid user binaries, as long as the major version
 number remains unchanged.
 </p>
-<ul class="mini-toc">
-<li><a href="#Adding-new-interfaces" accesskey="1">Adding new interfaces</a></li>
-<li><a href="#Removing-interfaces-1" accesskey="2">Removing interfaces</a></li>
-<li><a href="#Major-version-bumps-1" accesskey="3">Major version bumps</a></li>
-</ul>
-<div class="subsection-level-extent" id="Adding-new-interfaces">
-<h4 class="subsection"><span>3.4.1 Adding new interfaces<a class="copiable-link" href="#Adding-new-interfaces"> &para;</a></span></h4>
+<a name="Adding-new-interfaces"></a>
+<h4 class="subsection">3.4.1 Adding new interfaces<span class="pull-right"><a class="anchor hidden-xs" href="#Adding-new-interfaces" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Adding-new-interfaces" aria-hidden="true">TOC</a></span></h4>
 <p>Any new public identifiers in installed headers are considered new API - this
 includes new functions, structs, macros, enum values, typedefs, new fields in
 existing structs, new installed headers, etc. Consider the following
 guidelines when adding new APIs.
 </p>
-<h4 class="subsubheading" id="Motivation"><span>Motivation<a class="copiable-link" href="#Motivation"> &para;</a></span></h4>
+<a name="Motivation"></a>
 <p>While new APIs can be added relatively easily, changing or removing them is much
 harder due to abovementioned compatibility requirements. You should then
 consider carefully whether the functionality you are adding really needs to be
@@ -554,7 +507,7 @@ exposed to our callers as new public API.
 library that cannot be easily achieved with existing APIs. Every library in
 FFmpeg also has a defined scope - your new API must fit within it.
 </p>
-<h4 class="subsubheading" id="Replacing-existing-APIs"><span>Replacing existing APIs<a class="copiable-link" href="#Replacing-existing-APIs"> &para;</a></span></h4>
+<a name="Replacing-existing-APIs"></a>
 <p>If your new API is replacing an existing one, it should be strictly superior to
 it, so that the advantages of using the new API outweight the cost to the
 callers of changing their code. After adding the new API you should then
@@ -568,21 +521,21 @@ to our callers (e.g. through compile- or run-time deprecation warnings) and make
 it clear how to transition to the new API (e.g. in the Doxygen documentation or
 on the wiki).
 </p>
-<h4 class="subsubheading" id="API-design"><span>API design<a class="copiable-link" href="#API-design"> &para;</a></span></h4>
+<a name="API-design"></a>
 <p>The FFmpeg libraries are used by a variety of callers to perform a wide range of
 multimedia-related processing tasks. You should therefore - within reason - try
 to design your new API for the broadest feasible set of use cases and avoid
 unnecessarily limiting it to a specific type of callers (e.g. just media
 playback or just transcoding).
 </p>
-<h4 class="subsubheading" id="Consistency"><span>Consistency<a class="copiable-link" href="#Consistency"> &para;</a></span></h4>
+<a name="Consistency"></a>
 <p>Check whether similar APIs already exist in FFmpeg. If they do, try to model
 your new addition on them to achieve better overall consistency.
 </p>
 <p>The naming of your new identifiers should follow the <a class="ref" href="#Naming-conventions">Naming conventions</a>
 and be aligned with other similar APIs, if applicable.
 </p>
-<h4 class="subsubheading" id="Extensibility"><span>Extensibility<a class="copiable-link" href="#Extensibility"> &para;</a></span></h4>
+<a name="Extensibility"></a>
 <p>You should also consider how your API might be extended in the future in a
 backward-compatible way. If you are adding a new struct <code class="code">AVFoo</code>, the
 standard approach is requiring the caller to always allocate it through a
@@ -597,12 +550,12 @@ dangling pointer in the caller&rsquo;s memory.
 their behavior in the future - you may want to add a flags argument, even though
 it would be unused initially.
 </p>
-<h4 class="subsubheading" id="Documentation"><span>Documentation<a class="copiable-link" href="#Documentation"> &para;</a></span></h4>
+<a name="Documentation"></a>
 <p>All new APIs must be documented as Doxygen-formatted comments above the
 identifiers you add to the public headers. You should also briefly mention the
 change in <samp class="file">doc/APIchanges</samp>.
 </p>
-<h4 class="subsubheading" id="Bump-the-version"><span>Bump the version<a class="copiable-link" href="#Bump-the-version"> &para;</a></span></h4>
+<a name="Bump-the-version"></a>
 <p>Backward-incompatible API or ABI changes require incrementing (bumping) the
 major version number, as described in <a class="ref" href="#Major-version-bumps">Major version bumps</a>. Major
 bumps are significant events that happen on a schedule - so if your change
@@ -616,9 +569,8 @@ bumping the minor version number.
 compatible change (e.g. encoder bug fix that matters for the decoder). The third
 component always starts at 100 to distinguish FFmpeg from Libav.
 </p>
-<a class="anchor" id="Removing-interfaces"></a></div>
-<div class="subsection-level-extent" id="Removing-interfaces-1">
-<h4 class="subsection"><span>3.4.2 Removing interfaces<a class="copiable-link" href="#Removing-interfaces-1"> &para;</a></span></h4>
+<a class="anchor" id="Removing-interfaces"></a><a name="Removing-interfaces-1"></a>
+<h4 class="subsection">3.4.2 Removing interfaces<span class="pull-right"><a class="anchor hidden-xs" href="#Removing-interfaces-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Removing-interfaces-1" aria-hidden="true">TOC</a></span></h4>
 <p>Due to abovementioned compatibility guarantees, removing APIs is an involved
 process that should only be undertaken with good reason. Typically a deficient,
 restrictive, or otherwise inadequate API is replaced by a superior one, though
@@ -649,9 +601,8 @@ to suppress compiler deprecation warnings inside these guards. You should test
 that the code compiles and works with the guard macro evaluating to both true
 and false.
 </p>
-<a class="anchor" id="Major-version-bumps"></a></div>
-<div class="subsection-level-extent" id="Major-version-bumps-1">
-<h4 class="subsection"><span>3.4.3 Major version bumps<a class="copiable-link" href="#Major-version-bumps-1"> &para;</a></span></h4>
+<a class="anchor" id="Major-version-bumps"></a><a name="Major-version-bumps-1"></a>
+<h4 class="subsection">3.4.3 Major version bumps<span class="pull-right"><a class="anchor hidden-xs" href="#Major-version-bumps-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Major-version-bumps-1" aria-hidden="true">TOC</a></span></h4>
 <p>A major version bump signifies an API and/or ABI compatibility break. To reduce
 the negative effects on our callers, who are required to adapt their code,
 backward-incompatible changes during a major bump should be limited to:
@@ -661,11 +612,9 @@ backward-incompatible changes during a major bump should be limited to:
 </li><li>Performing ABI- but not API-breaking changes, like reordering struct contents.
 </li></ul>
 
-</div>
-</div>
-<div class="section-level-extent" id="Documentation_002fOther">
-<h3 class="section"><span>3.5 Documentation/Other<a class="copiable-link" href="#Documentation_002fOther"> &para;</a></span></h3>
-<h4 class="subheading" id="Subscribe-to-the-ffmpeg_002ddevel-mailing-list_002e"><span>Subscribe to the ffmpeg-devel mailing list.<a class="copiable-link" href="#Subscribe-to-the-ffmpeg_002ddevel-mailing-list_002e"> &para;</a></span></h4>
+<a name="Documentation_002fOther"></a>
+<h3 class="section">3.5 Documentation/Other<span class="pull-right"><a class="anchor hidden-xs" href="#Documentation_002fOther" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Documentation_002fOther" aria-hidden="true">TOC</a></span></h3>
+<a name="Subscribe-to-the-ffmpeg_002ddevel-mailing-list_002e"></a>
 <p>It is important to be subscribed to the
 <a class="uref" href="https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-devel">ffmpeg-devel</a>
 mailing list. Almost any non-trivial patch is to be sent there for review.
@@ -682,22 +631,22 @@ that you be subscribed to the ffmpeg-devel list. If you have a patch, and don&rs
 want to subscribe and discuss the patch, then please do send it to the list
 anyway.
 </p>
-<h4 class="subheading" id="Subscribe-to-the-ffmpeg_002dcvslog-mailing-list_002e"><span>Subscribe to the ffmpeg-cvslog mailing list.<a class="copiable-link" href="#Subscribe-to-the-ffmpeg_002dcvslog-mailing-list_002e"> &para;</a></span></h4>
+<a name="Subscribe-to-the-ffmpeg_002dcvslog-mailing-list_002e"></a>
 <p>Diffs of all commits are sent to the
 <a class="uref" href="https://lists.ffmpeg.org/mailman/listinfo/ffmpeg-cvslog">ffmpeg-cvslog</a>
 mailing list. Some developers read this list to review all code base changes
 from all sources. Subscribing to this list is not mandatory.
 </p>
-<h4 class="subheading" id="Keep-the-documentation-up-to-date_002e"><span>Keep the documentation up to date.<a class="copiable-link" href="#Keep-the-documentation-up-to-date_002e"> &para;</a></span></h4>
+<a name="Keep-the-documentation-up-to-date_002e"></a>
 <p>Update the documentation if you change behavior or add features. If you are
 unsure how best to do this, send a patch to ffmpeg-devel, the documentation
 maintainer(s) will review and commit your stuff.
 </p>
-<h4 class="subheading" id="Important-discussions-should-be-accessible-to-all_002e"><span>Important discussions should be accessible to all.<a class="copiable-link" href="#Important-discussions-should-be-accessible-to-all_002e"> &para;</a></span></h4>
+<a name="Important-discussions-should-be-accessible-to-all_002e"></a>
 <p>Try to keep important discussions and requests (also) on the public
 developer mailing list, so that all developers can benefit from them.
 </p>
-<h4 class="subheading" id="Check-your-entries-in-MAINTAINERS_002e"><span>Check your entries in MAINTAINERS.<a class="copiable-link" href="#Check-your-entries-in-MAINTAINERS_002e"> &para;</a></span></h4>
+<a name="Check-your-entries-in-MAINTAINERS_002e"></a>
 <p>Make sure that no parts of the codebase that you maintain are missing from the
 <samp class="file">MAINTAINERS</samp> file. If something that you want to maintain is missing add it with
 your name after it.
@@ -706,10 +655,8 @@ finding a new maintainer and also don&rsquo;t forget to update the <samp class="
 </p>
 <p>We think our rules are not too hard. If you have comments, contact us.
 </p>
-<a class="anchor" id="Submitting-patches"></a></div>
-</div>
-<div class="chapter-level-extent" id="Submitting-patches-1">
-<h2 class="chapter"><span>4 Submitting patches<a class="copiable-link" href="#Submitting-patches-1"> &para;</a></span></h2>
+<a class="anchor" id="Submitting-patches"></a><a name="Submitting-patches-1"></a>
+<h2 class="chapter">4 Submitting patches<span class="pull-right"><a class="anchor hidden-xs" href="#Submitting-patches-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Submitting-patches-1" aria-hidden="true">TOC</a></span></h2>
 
 <p>First, read the <a class="ref" href="#Coding-Rules">Coding Rules</a> above if you did not yet, in particular
 the rules regarding patch submission.
@@ -748,12 +695,12 @@ patch is inline or attached per mail.
 You can check <a class="url" href="https://patchwork.ffmpeg.org">https://patchwork.ffmpeg.org</a>, if your patch does not show up, its mime type
 likely was wrong.
 </p>
-<h4 class="subheading" id="How-to-setup-git-send_002demail_003f"><span>How to setup git send-email?<a class="copiable-link" href="#How-to-setup-git-send_002demail_003f"> &para;</a></span></h4>
+<a name="How-to-setup-git-send_002demail_003f"></a>
 
 <p>Please see <a class="url" href="https://git-send-email.io/">https://git-send-email.io/</a>.
 For gmail additionally see <a class="url" href="https://shallowsky.com/blog/tech/email/gmail-app-passwds.html">https://shallowsky.com/blog/tech/email/gmail-app-passwds.html</a>.
 </p>
-<h4 class="subheading" id="Sending-patches-from-email-clients"><span>Sending patches from email clients<a class="copiable-link" href="#Sending-patches-from-email-clients"> &para;</a></span></h4>
+<a name="Sending-patches-from-email-clients"></a>
 <p>Using <code class="code">git send-email</code> might not be desirable for everyone. The
 following trick allows to send patches via email clients in a safe
 way. It has been tested with Outlook and Thunderbird (with X-Unsent
@@ -766,7 +713,7 @@ extension) and might work with other applications.
 <p>Now you&rsquo;ll just need to open the eml file with the email application
 and execute &rsquo;Send&rsquo;.
 </p>
-<h4 class="subheading" id="Reviews"><span>Reviews<a class="copiable-link" href="#Reviews"> &para;</a></span></h4>
+<a name="Reviews"></a>
 <p>Your patch will be reviewed on the mailing list. You will likely be asked
 to make some changes and are expected to send in an improved version that
 incorporates the requests from the review. This process may go through
@@ -777,9 +724,8 @@ will pick it up and commit it to the official FFmpeg tree.
 send a reminder by email. Your patch should eventually be dealt with.
 </p>
 
-</div>
-<div class="chapter-level-extent" id="New-codecs-or-formats-checklist">
-<h2 class="chapter"><span>5 New codecs or formats checklist<a class="copiable-link" href="#New-codecs-or-formats-checklist"> &para;</a></span></h2>
+<a name="New-codecs-or-formats-checklist"></a>
+<h2 class="chapter">5 New codecs or formats checklist<span class="pull-right"><a class="anchor hidden-xs" href="#New-codecs-or-formats-checklist" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-New-codecs-or-formats-checklist" aria-hidden="true">TOC</a></span></h2>
 
 <ol class="enumerate">
 <li> Did you use av_cold for codec initialization and close functions?
@@ -819,9 +765,8 @@ configure?
 </li></ol>
 
 
-</div>
-<div class="chapter-level-extent" id="Patch-submission-checklist">
-<h2 class="chapter"><span>6 Patch submission checklist<a class="copiable-link" href="#Patch-submission-checklist"> &para;</a></span></h2>
+<a name="Patch-submission-checklist"></a>
+<h2 class="chapter">6 Patch submission checklist<span class="pull-right"><a class="anchor hidden-xs" href="#Patch-submission-checklist" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Patch-submission-checklist" aria-hidden="true">TOC</a></span></h2>
 
 <ol class="enumerate">
 <li> Does <code class="code">make fate</code> pass with the patch applied?
@@ -904,9 +849,8 @@ an explanation why to your patchset, its ok to not test if theres a reason.
 of leaks, out of array accesses, etc.
 </li></ol>
 
-</div>
-<div class="chapter-level-extent" id="Patch-review-process">
-<h2 class="chapter"><span>7 Patch review process<a class="copiable-link" href="#Patch-review-process"> &para;</a></span></h2>
+<a name="Patch-review-process"></a>
+<h2 class="chapter">7 Patch review process<span class="pull-right"><a class="anchor hidden-xs" href="#Patch-review-process" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Patch-review-process" aria-hidden="true">TOC</a></span></h2>
 
 <p>All patches posted to ffmpeg-devel will be reviewed, unless they contain a
 clear note that the patch is not for the git master branch.
@@ -936,9 +880,8 @@ separate patches.
 to be reviewed, please consider helping to review other patches, that is a great
 way to get everyone&rsquo;s patches reviewed sooner.
 </p>
-<a class="anchor" id="Regression-tests"></a></div>
-<div class="chapter-level-extent" id="Regression-tests-1">
-<h2 class="chapter"><span>8 Regression tests<a class="copiable-link" href="#Regression-tests-1"> &para;</a></span></h2>
+<a class="anchor" id="Regression-tests"></a><a name="Regression-tests-1"></a>
+<h2 class="chapter">8 Regression tests<span class="pull-right"><a class="anchor hidden-xs" href="#Regression-tests-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Regression-tests-1" aria-hidden="true">TOC</a></span></h2>
 
 <p>Before submitting a patch (or committing to the repository), you should at least
 test that you did not break anything.
@@ -949,13 +892,8 @@ test that you did not break anything.
 this case, the reference results of the regression tests shall be modified
 accordingly].
 </p>
-<ul class="mini-toc">
-<li><a href="#Adding-files-to-the-fate_002dsuite-dataset" accesskey="1">Adding files to the fate-suite dataset</a></li>
-<li><a href="#Visualizing-Test-Coverage" accesskey="2">Visualizing Test Coverage</a></li>
-<li><a href="#Using-Valgrind" accesskey="3">Using Valgrind</a></li>
-</ul>
-<div class="section-level-extent" id="Adding-files-to-the-fate_002dsuite-dataset">
-<h3 class="section"><span>8.1 Adding files to the fate-suite dataset<a class="copiable-link" href="#Adding-files-to-the-fate_002dsuite-dataset"> &para;</a></span></h3>
+<a name="Adding-files-to-the-fate_002dsuite-dataset"></a>
+<h3 class="section">8.1 Adding files to the fate-suite dataset<span class="pull-right"><a class="anchor hidden-xs" href="#Adding-files-to-the-fate_002dsuite-dataset" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Adding-files-to-the-fate_002dsuite-dataset" aria-hidden="true">TOC</a></span></h3>
 
 <p>If you need a sample uploaded send a mail to samples-request.
 </p>
@@ -968,9 +906,8 @@ Once you have a working fate test and fate sample, provide in the commit
 message or introductory message for the patch series that you post to
 the ffmpeg-devel mailing list, a direct link to download the sample media.
 </p>
-</div>
-<div class="section-level-extent" id="Visualizing-Test-Coverage">
-<h3 class="section"><span>8.2 Visualizing Test Coverage<a class="copiable-link" href="#Visualizing-Test-Coverage"> &para;</a></span></h3>
+<a name="Visualizing-Test-Coverage"></a>
+<h3 class="section">8.2 Visualizing Test Coverage<span class="pull-right"><a class="anchor hidden-xs" href="#Visualizing-Test-Coverage" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Visualizing-Test-Coverage" aria-hidden="true">TOC</a></span></h3>
 
 <p>The FFmpeg build system allows visualizing the test coverage in an easy
 manner with the coverage tools <code class="code">gcov</code>/<code class="code">lcov</code>.  This involves
@@ -993,9 +930,8 @@ the following steps:
 measurements. You will need to rerun <code class="code">make lcov</code> after running a
 new test.
 </p>
-</div>
-<div class="section-level-extent" id="Using-Valgrind">
-<h3 class="section"><span>8.3 Using Valgrind<a class="copiable-link" href="#Using-Valgrind"> &para;</a></span></h3>
+<a name="Using-Valgrind"></a>
+<h3 class="section">8.3 Using Valgrind<span class="pull-right"><a class="anchor hidden-xs" href="#Using-Valgrind" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Using-Valgrind" aria-hidden="true">TOC</a></span></h3>
 
 <p>The configure script provides a shortcut for using valgrind to spot bugs
 related to memory handling. Just add the option
@@ -1008,10 +944,27 @@ FATE under the supervision of either the <strong class="strong">memcheck</strong
 <code class="code">--target-exec='valgrind &lt;your_custom_valgrind_options&gt;</code> option in
 your configure line instead.
 </p>
-<a class="anchor" id="Release-process"></a></div>
-</div>
-<div class="chapter-level-extent" id="Release-process-1">
-<h2 class="chapter"><span>9 Release process<a class="copiable-link" href="#Release-process-1"> &para;</a></span></h2>
+<a class="anchor" id="Maintenance"></a><a name="Maintenance-process"></a>
+<h2 class="chapter">9 Maintenance process<span class="pull-right"><a class="anchor hidden-xs" href="#Maintenance-process" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Maintenance-process" aria-hidden="true">TOC</a></span></h2>
+
+<a class="anchor" id="MAINTAINERS"></a><a name="MAINTAINERS-1"></a>
+<h3 class="section">9.1 MAINTAINERS<span class="pull-right"><a class="anchor hidden-xs" href="#MAINTAINERS-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-MAINTAINERS-1" aria-hidden="true">TOC</a></span></h3>
+
+<p>The developers maintaining each part of the codebase are listed in <samp class="file">MAINTAINERS</samp>.
+Being listed in <samp class="file">MAINTAINERS</samp>, gives one the right to have git write access to
+the specific repository.
+</p>
+<a class="anchor" id="Becoming-a-maintainer"></a><a name="Becoming-a-maintainer-1"></a>
+<h3 class="section">9.2 Becoming a maintainer<span class="pull-right"><a class="anchor hidden-xs" href="#Becoming-a-maintainer-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Becoming-a-maintainer-1" aria-hidden="true">TOC</a></span></h3>
+
+<p>People add themselves to <samp class="file">MAINTAINERS</samp> by sending a patch like any other code
+change. These get reviewed by the community like any other patch. It is expected
+that, if someone has an objection to a new maintainer, she is willing to object
+in public with her full name and is willing to take over maintainership for the area.
+</p>
+
+<a class="anchor" id="Release-process"></a><a name="Release-process-1"></a>
+<h2 class="chapter">10 Release process<span class="pull-right"><a class="anchor hidden-xs" href="#Release-process-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Release-process-1" aria-hidden="true">TOC</a></span></h2>
 
 <p>FFmpeg maintains a set of <strong class="strong">release branches</strong>, which are the
 recommended deliverable for system integrators and distributors (such as
@@ -1040,12 +993,8 @@ require further steps such as bumping library version numbers and/or
 adjustments to the symbol versioning file. Please discuss such changes
 on the <strong class="strong">ffmpeg-devel</strong> mailing list in time to allow forward planning.
 </p>
-<a class="anchor" id="Criteria-for-Point-Releases"></a><ul class="mini-toc">
-<li><a href="#Criteria-for-Point-Releases-1" accesskey="1">Criteria for Point Releases</a></li>
-<li><a href="#Release-Checklist" accesskey="2">Release Checklist</a></li>
-</ul>
-<div class="section-level-extent" id="Criteria-for-Point-Releases-1">
-<h3 class="section"><span>9.1 Criteria for Point Releases<a class="copiable-link" href="#Criteria-for-Point-Releases-1"> &para;</a></span></h3>
+<a class="anchor" id="Criteria-for-Point-Releases"></a><a name="Criteria-for-Point-Releases-1"></a>
+<h3 class="section">10.1 Criteria for Point Releases<span class="pull-right"><a class="anchor hidden-xs" href="#Criteria-for-Point-Releases-1" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Criteria-for-Point-Releases-1" aria-hidden="true">TOC</a></span></h3>
 
 <p>Changes that match the following criteria are valid candidates for
 inclusion into a point release:
@@ -1065,9 +1014,8 @@ point releases of the same release branch.
 <p>The order for checking the rules is (1 OR 2 OR 3) AND 4.
 </p>
 
-</div>
-<div class="section-level-extent" id="Release-Checklist">
-<h3 class="section"><span>9.2 Release Checklist<a class="copiable-link" href="#Release-Checklist"> &para;</a></span></h3>
+<a name="Release-Checklist"></a>
+<h3 class="section">10.2 Release Checklist<span class="pull-right"><a class="anchor hidden-xs" href="#Release-Checklist" aria-hidden="true">#</a> <a class="anchor hidden-xs"href="#toc-Release-Checklist" aria-hidden="true">TOC</a></span></h3>
 
 <p>The release process involves the following steps:
 </p>
@@ -1101,9 +1049,6 @@ with a news entry for the website.
 </li><li> Send an announcement to the mailing list.
 </li></ol>
 
-</div>
-</div>
-</div>
       <p style="font-size: small;">
         This document was generated using <a class="uref" href="https://www.gnu.org/software/texinfo/"><em class="emph">makeinfo</em></a>.
       </p>
