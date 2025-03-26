@@ -374,9 +374,9 @@ else()
 
     function(compile_glsl run_target_name)
         if(GLSL_COMPILER)
-            set(GLSL_FLAGS -Werror -O -mfmt=c)
+            set(GLSL_FLAGS -Werror -O -mfmt=c --target-env=vulkan1.1)
         else() # ==GLSLANG_VALIDATOR
-            set(GLSL_FLAGS -g0 -V)
+            set(GLSL_FLAGS -g0 -V --target-env=vulkan1.1)
         endif()
 
         set(glsl_output_files "")
