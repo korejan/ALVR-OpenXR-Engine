@@ -2271,6 +2271,11 @@ struct OpenXrProgram final : IOpenXrProgram {
             return false;
         }
 
+        if (visibilityMask.indexCountOutput == 0 || visibilityMask.vertexCountOutput == 0) {
+            Log::Write(Log::Level::Warning, "Runtime has no valid visibility mask.");
+            return false;
+        }
+
         mesh.indices.resize(visibilityMask.indexCountOutput);
         visibilityMask.indexCapacityInput = visibilityMask.indexCountOutput;
         visibilityMask.indices = mesh.indices.data();
@@ -2321,7 +2326,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         assert(m_graphicsPlugin != nullptr);
         for (std::uint32_t viewIdx = 0; viewIdx < m_views.size(); ++viewIdx) {
             IOpenXrProgram::HiddenAreaMesh ham = {};
-            if (!GetHiddenAreaMesh(viewIdx, ham))
+            if (!GetHiddenAreaMesh(viewIdx, ham) || !ham.IsValid())
                 break;
             const XrVisibilityMaskKHR visibilityMask = {
                 .type = XR_TYPE_VISIBILITY_MASK_KHR,

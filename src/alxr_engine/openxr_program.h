@@ -128,6 +128,9 @@ struct IOpenXrProgram {
     struct HiddenAreaMesh final {
         std::vector<XrVector2f> vertices;
         std::vector<std::uint32_t> indices;
+        bool IsValid() const {
+            return !vertices.empty() && !indices.empty();
+        }
     };
     virtual bool GetHiddenAreaMesh(size_t /*viewIdx*/, HiddenAreaMesh& /*mesh*/) const = 0;
     virtual bool GetEyeInfo(ALXREyeInfo&, const XrTime& t) const = 0;

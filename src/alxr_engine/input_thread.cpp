@@ -44,7 +44,7 @@ void XrInputThread::Update(const XrInputThread::StartCtx& ctx) {
             std::array<IOpenXrProgram::HiddenAreaMesh, 2> hiddenAreaMeshes{};
             for (size_t viewIdx = 0; viewIdx < 2; ++viewIdx) {
                 auto& ham = hiddenAreaMeshes[viewIdx];
-                if (!ctx.programPtr->GetHiddenAreaMesh(viewIdx, ham))
+                if (!ctx.programPtr->GetHiddenAreaMesh(viewIdx, ham) || !ham.IsValid())
                     break;
                 static_assert(sizeof(ALXRVector2f) == sizeof(XrVector2f));
                 newViewConfig.hidden_area_meshes[viewIdx] = {

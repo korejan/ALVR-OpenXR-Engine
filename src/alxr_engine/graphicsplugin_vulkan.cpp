@@ -4833,6 +4833,13 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
     virtual bool SetVisibilityMask(uint32_t viewIndex, const struct XrVisibilityMaskKHR& visibilityMask) override {
 
+        if (visibilityMask.vertexCountOutput == 0 ||
+            visibilityMask.indexCountOutput == 0 ||
+            visibilityMask.vertices == nullptr ||
+            visibilityMask.indices == nullptr) {
+            return false;
+        }
+
         if (!m_visibilityMaskEnabled) {
             Log::Write(Log::Level::Warning, "Attempting to set a visibility mask when not enabled.");
             return false;
