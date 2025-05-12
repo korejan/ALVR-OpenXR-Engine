@@ -2575,6 +2575,9 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
     void InitExtDebugUtils() {
 
+        if (!m_vkCtx.IsInstanceExtEnabled(VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
+            return;
+
         auto pVkCreateDebugUtilsMessengerEXT =
             (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_vkCtx.instance, "vkCreateDebugUtilsMessengerEXT");
         if (pVkCreateDebugUtilsMessengerEXT == nullptr) {
@@ -2587,6 +2590,12 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         if (m_vkDestroyDebugUtilsMessengerEXT == nullptr) {
             Log::Write(Log::Level::Warning, "Failed to load vkDestroyDebugUtilsMessengerEXT");
             return;
+        }
+
+        m_vkSetDebugUtilsObjectNameEXT =
+            (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(m_vkCtx.instance, "vkSetDebugUtilsObjectNameEXT");
+        if (m_vkSetDebugUtilsObjectNameEXT == nullptr) {
+            Log::Write(Log::Level::Warning, "Failed to load vkSetDebugUtilsObjectNameEXT");
         }
 
         const VkDebugUtilsMessengerCreateInfoEXT createInfo = {
@@ -2607,7 +2616,6 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             .pfnUserCallback = debugMessageThunk,
             .pUserData = this
         };
-
         if (pVkCreateDebugUtilsMessengerEXT(m_vkCtx.instance, &createInfo, nullptr, &m_vkDebugUtilsMessenger) != VK_SUCCESS) {
             Log::Write(Log::Level::Warning, "Failed to create vulkan debug messenger");
             m_vkDebugUtilsMessenger = VK_NULL_HANDLE;
@@ -5888,56 +5896,148 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 // END VIDEO STREAM DATA /////////////////////////////////////////////////////////////
 
     PFN_vkDestroyDebugUtilsMessengerEXT m_vkDestroyDebugUtilsMessengerEXT{nullptr};
+    PFN_vkSetDebugUtilsObjectNameEXT m_vkSetDebugUtilsObjectNameEXT{ nullptr };
     VkDebugUtilsMessengerEXT m_vkDebugUtilsMessenger{VK_NULL_HANDLE};
 
-    static std::string vkObjectTypeToString(VkObjectType objectType) {
-        std::string objName;
-#define LIST_OBJECT_TYPES(_)          \
-    _(UNKNOWN)                        \
-    _(INSTANCE)                       \
-    _(PHYSICAL_DEVICE)                \
-    _(DEVICE)                         \
-    _(QUEUE)                          \
-    _(SEMAPHORE)                      \
-    _(COMMAND_BUFFER)                 \
-    _(FENCE)                          \
-    _(DEVICE_MEMORY)                  \
-    _(BUFFER)                         \
-    _(IMAGE)                          \
-    _(EVENT)                          \
-    _(QUERY_POOL)                     \
-    _(BUFFER_VIEW)                    \
-    _(IMAGE_VIEW)                     \
-    _(SHADER_MODULE)                  \
-    _(PIPELINE_CACHE)                 \
-    _(PIPELINE_LAYOUT)                \
-    _(RENDER_PASS)                    \
-    _(PIPELINE)                       \
-    _(DESCRIPTOR_SET_LAYOUT)          \
-    _(SAMPLER)                        \
-    _(DESCRIPTOR_POOL)                \
-    _(DESCRIPTOR_SET)                 \
-    _(FRAMEBUFFER)                    \
-    _(COMMAND_POOL)                   \
-    _(SURFACE_KHR)                    \
-    _(SWAPCHAIN_KHR)                  \
-    _(DISPLAY_KHR)                    \
-    _(DISPLAY_MODE_KHR)               \
-    _(DESCRIPTOR_UPDATE_TEMPLATE_KHR) \
-    _(DEBUG_UTILS_MESSENGER_EXT)
+    struct VkUnknownType {};
+#define LIST_VK_OBJECT_TYPES_BASE(_)                 \
+    _(UNKNOWN, VkUnknownType)                        \
+    _(INSTANCE, VkInstance)                          \
+    _(PHYSICAL_DEVICE, VkPhysicalDevice)             \
+    _(DEVICE, VkDevice)                              \
+    _(QUEUE, VkQueue)                                \
+    _(SEMAPHORE, VkSemaphore)                        \
+    _(COMMAND_BUFFER, VkCommandBuffer)               \
+    _(FENCE, VkFence)                                \
+    _(DEVICE_MEMORY, VkDeviceMemory)                 \
+    _(BUFFER, VkBuffer)                              \
+    _(IMAGE, VkImage)                                \
+    _(EVENT, VkEvent)                                \
+    _(QUERY_POOL, VkQueryPool)                       \
+    _(BUFFER_VIEW, VkBufferView)                     \
+    _(IMAGE_VIEW, VkImageView)                       \
+    _(SHADER_MODULE, VkShaderModule)                 \
+    _(PIPELINE_CACHE, VkPipelineCache)               \
+    _(PIPELINE_LAYOUT, VkPipelineLayout)             \
+    _(RENDER_PASS, VkRenderPass)                     \
+    _(PIPELINE, VkPipeline)                          \
+    _(DESCRIPTOR_SET_LAYOUT, VkDescriptorSetLayout)  \
+    _(SAMPLER, VkSampler)                            \
+    _(DESCRIPTOR_POOL, VkDescriptorPool)             \
+    _(DESCRIPTOR_SET, VkDescriptorSet)               \
+    _(FRAMEBUFFER, VkFramebuffer)                    \
+    _(COMMAND_POOL, VkCommandPool)
 
+#define LIST_VK_OBJECT_TYPES_1_1(_)                                      \
+    LIST_VK_OBJECT_TYPES_BASE(_)                                         \
+    _(SAMPLER_YCBCR_CONVERSION, VkSamplerYcbcrConversion)                \
+    _(DESCRIPTOR_UPDATE_TEMPLATE, VkDescriptorUpdateTemplate)            \
+    _(SURFACE_KHR, VkSurfaceKHR)                                         \
+    _(SWAPCHAIN_KHR, VkSwapchainKHR)                                     \
+    _(DISPLAY_KHR, VkDisplayKHR)                                         \
+    _(DISPLAY_MODE_KHR, VkDisplayModeKHR)                                \
+    _(DEBUG_REPORT_CALLBACK_EXT, VkDebugReportCallbackEXT)               \
+    _(DEBUG_UTILS_MESSENGER_EXT, VkDebugUtilsMessengerEXT)               \
+    _(VALIDATION_CACHE_EXT, VkValidationCacheEXT)                        \
+    _(ACCELERATION_STRUCTURE_NV, VkAccelerationStructureNV)              \
+    _(PERFORMANCE_CONFIGURATION_INTEL, VkPerformanceConfigurationINTEL)  \
+    _(DESCRIPTOR_UPDATE_TEMPLATE_KHR, VkDescriptorUpdateTemplateKHR)
+    // _(OBJECT_TABLE_NVX, void*)                                        \
+    // _(INDIRECT_COMMANDS_LAYOUT_NVX, void*)                            \
+
+#define LIST_VK_OBJECT_TYPES_1_2(_)                                      \
+    LIST_VK_OBJECT_TYPES_BASE(_)                                         \
+    _(SAMPLER_YCBCR_CONVERSION, VkSamplerYcbcrConversion)                \
+    _(DESCRIPTOR_UPDATE_TEMPLATE, VkDescriptorUpdateTemplate)            \
+    _(SURFACE_KHR, VkSurfaceKHR)                                         \
+    _(SWAPCHAIN_KHR, VkSwapchainKHR)                                     \
+    _(DISPLAY_KHR, VkDisplayKHR)                                         \
+    _(DISPLAY_MODE_KHR, VkDisplayModeKHR)                                \
+    _(DEBUG_REPORT_CALLBACK_EXT, VkDebugReportCallbackEXT)               \
+    _(CU_MODULE_NVX, VkCuModuleNVX)                                      \
+    _(CU_FUNCTION_NVX, VkCuFunctionNVX)                                  \
+    _(DEBUG_UTILS_MESSENGER_EXT, VkDebugUtilsMessengerEXT)               \
+    _(ACCELERATION_STRUCTURE_KHR, VkAccelerationStructureKHR)            \
+    _(VALIDATION_CACHE_EXT, VkValidationCacheEXT)                        \
+    _(ACCELERATION_STRUCTURE_NV, VkAccelerationStructureNV)              \
+    _(PERFORMANCE_CONFIGURATION_INTEL, VkPerformanceConfigurationINTEL)  \
+    _(DEFERRED_OPERATION_KHR, VkDeferredOperationKHR)                    \
+    _(INDIRECT_COMMANDS_LAYOUT_NV, VkIndirectCommandsLayoutNV)           \
+    _(PRIVATE_DATA_SLOT_EXT, VkPrivateDataSlotEXT)                       \
+    // _(BUFFER_COLLECTION_FUCHSIA, VkBufferCollectionFUCHSIA)
+
+#define LIST_VK_OBJECT_TYPES_1_3(_)                                      \
+    LIST_VK_OBJECT_TYPES_BASE(_)                                         \
+    _(SAMPLER_YCBCR_CONVERSION, VkSamplerYcbcrConversion)                \
+    _(DESCRIPTOR_UPDATE_TEMPLATE, VkDescriptorUpdateTemplate)            \
+    _(PRIVATE_DATA_SLOT, VkPrivateDataSlot)                              \
+    _(SURFACE_KHR, VkSurfaceKHR)                                         \
+    _(SWAPCHAIN_KHR, VkSwapchainKHR)                                     \
+    _(DISPLAY_KHR, VkDisplayKHR)                                         \
+    _(DISPLAY_MODE_KHR, VkDisplayModeKHR)                                \
+    _(DEBUG_REPORT_CALLBACK_EXT, VkDebugReportCallbackEXT)               \
+    _(VIDEO_SESSION_KHR, VkVideoSessionKHR)                              \
+    _(VIDEO_SESSION_PARAMETERS_KHR, VkVideoSessionParametersKHR)         \
+    _(CU_MODULE_NVX, VkCuModuleNVX)                                      \
+    _(CU_FUNCTION_NVX, VkCuFunctionNVX)                                  \
+    _(DEBUG_UTILS_MESSENGER_EXT, VkDebugUtilsMessengerEXT)               \
+    _(ACCELERATION_STRUCTURE_KHR, VkAccelerationStructureKHR)            \
+    _(VALIDATION_CACHE_EXT, VkValidationCacheEXT)                        \
+    _(ACCELERATION_STRUCTURE_NV, VkAccelerationStructureNV)              \
+    _(PERFORMANCE_CONFIGURATION_INTEL, VkPerformanceConfigurationINTEL)  \
+    _(DEFERRED_OPERATION_KHR, VkDeferredOperationKHR)                    \
+    _(INDIRECT_COMMANDS_LAYOUT_NV, VkIndirectCommandsLayoutNV)           \
+    _(MICROMAP_EXT, VkMicromapEXT)                                       \
+    _(OPTICAL_FLOW_SESSION_NV, VkOpticalFlowSessionNV)                   \
+    _(SHADER_EXT, VkShaderEXT)                                           \
+    _(PIPELINE_BINARY_KHR, VkPipelineBinaryKHR)                          \
+    _(INDIRECT_COMMANDS_LAYOUT_EXT, VkIndirectCommandsLayoutEXT)         \
+    _(INDIRECT_EXECUTION_SET_EXT, VkIndirectExecutionSetEXT)
+    // _(BUFFER_COLLECTION_FUCHSIA, VkBufferCollectionFUCHSIA)
+
+#if defined(VK_API_VERSION_1_3) && (VK_VERSION_1_3 > 0)
+    #define LIST_VK_OBJECT_TYPES(_) LIST_VK_OBJECT_TYPES_1_3(_)
+#elif defined(VK_API_VERSION_1_2) && (VK_VERSION_1_2 > 0)
+    #define LIST_VK_OBJECT_TYPES(_) LIST_VK_OBJECT_TYPES_1_2(_)
+#elif defined(VK_API_VERSION_1_1) && (VK_VERSION_1_1 > 0)
+    #define LIST_VK_OBJECT_TYPES(_) LIST_VK_OBJECT_TYPES_1_2(_)
+#else
+    #error "Vulkan versions below 1.1 are not supported!"
+#endif
+
+#define MK_TO_VK_OBJECT_TYPE_FN(objName, vkHandleT) \
+    static constexpr VkObjectType ToVkObjectType(const vkHandleT) { return VK_OBJECT_TYPE_##objName; }
+    LIST_VK_OBJECT_TYPES(MK_TO_VK_OBJECT_TYPE_FN)
+#undef MK_TO_VK_OBJECT_TYPE_FN
+
+    static std::string vkObjectTypeToString(VkObjectType objectType) {
         switch (objectType) {
-        default: objName = "UNKNOWN-TYPE";
-            break;
-#define MK_OBJECT_TYPE_CASE(name) \
-    case VK_OBJECT_TYPE_##name:   \
-        objName = #name;          \
-        break;
-            LIST_OBJECT_TYPES(MK_OBJECT_TYPE_CASE)
-        }
-#undef LIST_OBJECT_TYPES
+#define MK_OBJECT_TYPE_CASE(name, _)  \
+        case VK_OBJECT_TYPE_##name:   \
+            return #name;
+        LIST_VK_OBJECT_TYPES(MK_OBJECT_TYPE_CASE)
 #undef MK_OBJECT_TYPE_CASE
-        return objName;
+        default: return "UNKNOWN-TYPE";
+        }
+    }
+
+    template < typename VkObjectHandleT >
+    VkResult SetVkObjectName(VkObjectHandleT vkObjectHandle, const char* objName) {
+        if (!m_vkCtx.IsValid() || m_vkSetDebugUtilsObjectNameEXT == nullptr)
+            return VK_ERROR_EXTENSION_NOT_PRESENT;
+        if (objName == nullptr || vkObjectHandle == VK_NULL_HANDLE)
+            return VK_ERROR_NOT_PERMITTED;
+        const auto vkObjectType = ToVkObjectType(vkObjectHandle);
+        if (vkObjectType == VK_OBJECT_TYPE_UNKNOWN)
+            return VK_ERROR_NOT_PERMITTED;
+        const VkDebugUtilsObjectNameInfoEXT nameInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+            .pNext = nullptr,
+            .objectType = vkObjectType,
+            .objectHandle = (std::uint64_t)vkObjectHandle,
+            .pObjectName = objName,
+        };
+        return m_vkSetDebugUtilsObjectNameEXT(m_vkCtx.device, &nameInfo);
     }
 
     VkBool32 debugMessage(
