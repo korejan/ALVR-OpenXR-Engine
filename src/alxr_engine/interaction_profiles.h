@@ -84,7 +84,7 @@ constexpr inline const InteractionProfile EyeGazeProfile{
     .userEyesPath = ALXR::UserEyesExt
 };
 
-constexpr inline const std::size_t ProfileMapSize = 11;
+constexpr inline const std::size_t ProfileMapSize = 13;
 constexpr inline const std::array<const InteractionProfile, ProfileMapSize> InteractionProfileMap{
     InteractionProfile {
         .boolMap {
@@ -214,6 +214,114 @@ constexpr inline const std::array<const InteractionProfile, ProfileMapSize> Inte
                 ALVR_BUTTON_FLAG(ALVR_INPUT_B_CLICK)
             }
         }}
+    },
+    InteractionProfile{
+        .boolMap {
+            LeftMap { ButtonMap
+                {ALVR_INPUT_SYSTEM_CLICK, MenuClick},
+                {ALVR_INPUT_GRIP_CLICK, SqueezeClick},
+                {ALVR_INPUT_X_CLICK, XClick},
+                {ALVR_INPUT_X_TOUCH, XTouch},
+                {ALVR_INPUT_Y_CLICK, YClick},
+                {ALVR_INPUT_Y_TOUCH, YTouch},
+                {ALVR_INPUT_JOYSTICK_CLICK, ThumbstickClick},
+                {ALVR_INPUT_JOYSTICK_TOUCH, ThumbstickTouch},
+                {ALVR_INPUT_TRIGGER_CLICK, TriggerClick},
+                {ALVR_INPUT_TRIGGER_TOUCH, TriggerTouch},
+                MapEnd
+            },
+            RightMap { ButtonMap
+                {ALVR_INPUT_SYSTEM_CLICK, MenuClick},
+                {ALVR_INPUT_GRIP_CLICK, SqueezeClick},
+                {ALVR_INPUT_A_CLICK, AClick},
+                {ALVR_INPUT_A_TOUCH, ATouch},
+                {ALVR_INPUT_B_CLICK, BClick},
+                {ALVR_INPUT_B_TOUCH, BTouch},
+                {ALVR_INPUT_JOYSTICK_CLICK, ThumbstickClick},
+                {ALVR_INPUT_JOYSTICK_TOUCH, ThumbstickTouch},
+                {ALVR_INPUT_TRIGGER_CLICK, TriggerClick},
+                {ALVR_INPUT_TRIGGER_TOUCH, TriggerTouch},
+                MapEnd
+            },
+        },
+        .scalarMap {
+            LeftMap { ButtonMap
+                {ALVR_INPUT_GRIP_VALUE, SqueezeValue},
+                {ALVR_INPUT_TRIGGER_VALUE, TriggerValue},
+                MapEnd
+            },
+            RightMap { ButtonMap
+                {ALVR_INPUT_GRIP_VALUE, SqueezeValue},
+                {ALVR_INPUT_TRIGGER_VALUE, TriggerValue},
+                MapEnd
+            }
+        },
+        .vector2fMap {
+            LeftMap { ButtonMap
+                {ALVR_INPUT_JOYSTICK_X, ThumbstickPos},
+                MapEnd
+            },
+            RightMap { ButtonMap
+                {ALVR_INPUT_JOYSTICK_X, ThumbstickPos},
+                MapEnd
+            }
+        },
+        .path = "/interaction_profiles/bytedance/pico4s_controller",
+        .extensionName = XR_BD_CONTROLLER_INTERACTION_EXTENSION_NAME,
+        .quitPath = nullptr,
+        .passthroughModes { PassthroughModeButtons {
+            .blendMode {
+                ALVR_BUTTON_FLAG(ALVR_INPUT_SYSTEM_CLICK),
+                ALVR_BUTTON_FLAG(ALVR_INPUT_A_CLICK)
+            },
+            .maskMode {
+                ALVR_BUTTON_FLAG(ALVR_INPUT_SYSTEM_CLICK),
+                ALVR_BUTTON_FLAG(ALVR_INPUT_B_CLICK)
+            }
+        }}
+    },
+    InteractionProfile{
+        .boolMap {
+            LeftMap { ButtonMap
+                {ALVR_INPUT_SYSTEM_CLICK, MenuClick},
+                {ALVR_INPUT_JOYSTICK_CLICK, ThumbstickClick},
+                {ALVR_INPUT_TRACKPAD_CLICK, TrackpadClick},
+                {ALVR_INPUT_TRIGGER_CLICK, TriggerClick},
+                MapEnd
+            },
+            RightMap { ButtonMap
+                {ALVR_INPUT_SYSTEM_CLICK, MenuClick},
+                {ALVR_INPUT_JOYSTICK_CLICK, ThumbstickClick},
+                {ALVR_INPUT_TRACKPAD_CLICK, TrackpadClick},
+                {ALVR_INPUT_TRIGGER_CLICK, TriggerClick},
+                MapEnd
+            },
+        },
+        .scalarMap {
+            LeftMap { ButtonMap
+                {ALVR_INPUT_TRIGGER_VALUE, TriggerValue},
+                MapEnd
+            },
+            RightMap { ButtonMap
+                {ALVR_INPUT_TRIGGER_VALUE, TriggerValue},
+                MapEnd
+            }
+        },
+        .vector2fMap {
+            LeftMap { ButtonMap
+                {ALVR_INPUT_JOYSTICK_X, ThumbstickPos},
+                {ALVR_INPUT_TRACKPAD_X, TrackpadPos},
+                MapEnd
+            },
+            RightMap { ButtonMap
+                {ALVR_INPUT_JOYSTICK_X, ThumbstickPos},
+                {ALVR_INPUT_TRACKPAD_X, TrackpadPos},
+                MapEnd
+            }
+        },
+        .path = "/interaction_profiles/bytedance/pico_g3_controller",
+        .extensionName = XR_BD_CONTROLLER_INTERACTION_EXTENSION_NAME,
+        .quitPath = nullptr,
     },
     InteractionProfile {
         .boolMap {
