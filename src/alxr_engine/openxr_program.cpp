@@ -762,13 +762,16 @@ struct OpenXrProgram final : IOpenXrProgram {
             Log::Write(Log::Level::Info, Fmt("\t%s", name.c_str()));
         }
 
+        const XrVersion apiVersion = (m_options && m_options->XrApiVersion) ?
+            m_options->XrApiVersion : XR_API_VERSION_1_0;
+
         XrInstanceCreateInfo createInfo {
             .type = XR_TYPE_INSTANCE_CREATE_INFO,
             .next = m_platformPlugin->GetInstanceCreateExtension(),
             .applicationInfo {
                 .applicationVersion = 1,
                 .engineVersion = 1,
-                .apiVersion = XR_API_VERSION_1_0
+                .apiVersion = apiVersion,
             },
             .enabledApiLayerCount = 0,
             .enabledApiLayerNames = nullptr,

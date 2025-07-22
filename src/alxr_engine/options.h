@@ -65,6 +65,9 @@ struct FirmwareVersion {
         std::uint32_t patch = 0
     ) : parts{ major, minor, patch } {}
 
+    constexpr inline FirmwareVersion(const ALXRVersion& v)
+    : FirmwareVersion(v.major,v.minor, v.minor){}
+
     constexpr inline FirmwareVersion(const FirmwareVersion&) noexcept = default;
     constexpr inline FirmwareVersion& operator=(const FirmwareVersion&) noexcept = default;
 
@@ -128,6 +131,8 @@ struct Options {
 
     ALXRFacialExpressionType FacialTracking = ALXRFacialExpressionType::Auto;
     ALXREyeTrackingType      EyeTracking = ALXREyeTrackingType::Auto;
+
+    XrVersion XrApiVersion = XR_API_VERSION_1_0;
 
     std::uint16_t TrackingServerPortNo = 49192;
 

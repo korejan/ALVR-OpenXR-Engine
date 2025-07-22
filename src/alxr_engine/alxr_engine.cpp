@@ -136,6 +136,12 @@ bool alxr_init(const ALXRClientCtx* rCtx, /*[out]*/ ALXRSystemProperties* system
             options->FaceTrackingDataSources = ctx.faceTrackingDataSources;
         if (options->GraphicsPlugin.empty())
             options->GraphicsPlugin = graphics_api_str(ctx.graphicsApi);
+        
+        const auto& xrApiVersion = ctx.xrApiVersion;
+        if (!(xrApiVersion.major == 0 && xrApiVersion.minor == 0 && xrApiVersion.patch == 0)) {
+            options->XrApiVersion = XR_MAKE_VERSION(xrApiVersion.major, xrApiVersion.minor, xrApiVersion.patch);
+            Log::Write(Log::Level::Verbose, Fmt("XrApiVersion: %u.%u.%u", xrApiVersion.major, xrApiVersion.minor, xrApiVersion.patch));
+        }
 
         const auto platformData = std::make_shared<PlatformData>();
 #ifdef XR_USE_PLATFORM_ANDROID

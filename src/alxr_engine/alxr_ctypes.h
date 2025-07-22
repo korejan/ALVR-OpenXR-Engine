@@ -155,6 +155,7 @@ typedef struct ALXRClientCtx
     void (*requestIDR)();
 
     ALXRVersion     firmwareVersion;
+    ALXRVersion     xrApiVersion;
     ALXRGraphicsApi graphicsApi;
     ALXRDecoderType decoderType;
     ALXRColorSpace  displayColorSpace;
