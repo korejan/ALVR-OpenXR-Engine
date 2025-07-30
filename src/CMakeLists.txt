@@ -27,8 +27,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+list(
+    APPEND CMAKE_MODULE_PATH
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/sanitizers-cmake/cmake"
+)
 
 include(StdFilesystemFlags)
+
+find_package(Sanitizers)
 
 ### Dependencies
 
@@ -64,11 +70,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WindowsStore"
     set(XR_IS_UWP TRUE)
     message(STATUS "OpenGL/Vulkan disabled due to incompatibility")
 elseif(WIN32)
-    include(CheckSymbolExists)
-    check_symbol_exists(ChoosePixelFormat wingdi.h HAVE_CHOOSEPIXELFORMAT)
-    if(NOT HAVE_CHOOSEPIXELFORMAT)
-        #message(STATUS "OpenGL disabled due to missing Windows API")
+    if(CMAKE_SYSTEM_NAME STREQUAL "ARM" OR CMAKE_C_COMPILER_ARCHITECTURE_ID
+                                           STREQUAL "ARMV7"
+    )
         set(OPENGL_INCOMPATIBLE TRUE)
+        set(VULKAN_INCOMPATIBLE TRUE)
+        message(
+            STATUS
+                "OpenGL/Vulkan disabled due to incompatibility with Windows on ARM 32-bit"
+        )
     endif()
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(OPENGL_INCOMPATIBLE TRUE)
@@ -710,7 +720,13 @@ macro(run_xr_xml_generate dependency output)
             COMMENT
                 "Generating ${output} using ${Python3_EXECUTABLE} on ${dependency}"
         )
-        set_source_files_properties(${output} PROPERTIES GENERATED TRUE)
+        # cmake-format: off
+        set_source_files_properties(${output}
+            PROPERTIES
+               GENERATED TRUE
+               SKIP_LINTING ON
+        )
+        # cmake-format: on
         list(APPEND GENERATED_OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${output}")
         list(APPEND GENERATED_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${output}")
     endif()
@@ -870,6 +886,14 @@ add_subdirectory(alxr_engine)
 
 if(BUILD_TESTS OR BUILD_CONFORMANCE_TESTS)
     add_subdirectory(external/catch2)
+
+    file(GLOB_RECURSE EXTERNAL_SOURCES external/catch2/*.cpp)
+    # cmake-format: off
+    set_source_files_properties(${EXTERNAL_SOURCES}
+        TARGET_DIRECTORY Catch2::Catch2
+        PROPERTIES SKIP_LINTING ON
+    )
+    # cmake-format: on
 endif()
 
 if(BUILD_CONFORMANCE_TESTS)
