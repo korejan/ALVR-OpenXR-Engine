@@ -120,16 +120,32 @@ namespace ALXR::VRCFT {
         void Close() {
             try {
                 Log::Write(Log::Level::Info, "VRCFTServer: shutting down server.");
-                m_session.reset();
-                m_socket.close();
-                m_acceptor.close();
+                
+                Log::Write(Log::Level::Info, "VRCFTServer: stopping io-context run thread.");
                 m_ioContext.stop();
-                if (m_ioCtxThread.joinable())
+
+                if (m_ioCtxThread.joinable()) {
+                    Log::Write(Log::Level::Info, "VRCFTServer: waiting for io-context run thread to stop.");
                     m_ioCtxThread.join();
-                Log::Write(Log::Level::Info, "VRCFTServer: server shutdown.");
+                }
+                Log::Write(Log::Level::Info, "VRCFTServer: io-context thread stopped.");
+
+                Log::Write(Log::Level::Info, "VRCFTServer: closing acceptor.");
+                m_acceptor.close();
+
+                Log::Write(Log::Level::Info, "VRCFTServer: closing session.");
+                m_session.reset();
+
+                Log::Write(Log::Level::Info, "VRCFTServer: closing socket.");
+                m_socket.close();
+
+                Log::Write(Log::Level::Info, "VRCFTServer: server successfully shutdown.");
             }
-            catch (const asio::system_error& sysError) {
+            catch (const std::exception& sysError) {
                 Log::Write(Log::Level::Error, Fmt("VRCFTServer: Failed to cleanly shutdown server, reason: \"%s\"", sysError.what()));
+            }
+            catch (...) {
+                Log::Write(Log::Level::Error, "VRCFTServer: Failed to cleanly shutdown server");
             }
         }
 
@@ -149,17 +165,25 @@ namespace ALXR::VRCFT {
         inline void AsyncAccept() {
             m_acceptor.async_accept(m_socket, [this](std::error_code ec) {
                 if (!ec) {
-                    Log::Write(Log::Level::Info, "VRCFTServer: connection accepted.");
-                    m_socket.set_option(socket_base::linger{false,0});
-                    m_socket.set_option(asio::socket_base::keep_alive{true});
+                    try {
+                        Log::Write(Log::Level::Info, "VRCFTServer: connection accepted.");
+                        m_socket.set_option(socket_base::linger{ false,0 });
+                        m_socket.set_option(asio::socket_base::keep_alive{ true });
 #ifndef XR_USE_PLATFORM_WIN32
-                    using quick_ack = asio::detail::socket_option::boolean<IPPROTO_TCP, TCP_QUICKACK>;
-                    m_socket.set_option(quick_ack{ true });
+                        using quick_ack = asio::detail::socket_option::boolean<IPPROTO_TCP, TCP_QUICKACK>;
+                        m_socket.set_option(quick_ack{ true });
 #endif
-                    m_socket.set_option(tcp::no_delay{true});
-                    m_session = std::make_shared<Session>(std::move(m_socket));
-                    if (m_onNewConnectionFn)
-                        m_onNewConnectionFn();
+                        m_socket.set_option(tcp::no_delay{ true });
+                        m_session = std::make_shared<Session>(std::move(m_socket));
+                        if (m_onNewConnectionFn)
+                            m_onNewConnectionFn();
+                    }
+                    catch (const std::exception& sysError) {
+                        Log::Write(Log::Level::Error, Fmt("VRCFTServer: async_accept failed, reason: \"%s\"", sysError.what()));
+                    }
+                    catch (...) {
+                        Log::Write(Log::Level::Error, "VRCFTServer: async_accept failed");
+                    }
                 }
                 AsyncAccept();
             });
