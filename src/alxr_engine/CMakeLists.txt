@@ -168,20 +168,38 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     set(ONE_API_TTB_LIBS)
 elseif (WIN32)
 
-    set(FFMPEG_PLATFORM_DIR "win32")
-    set(AVUTIL_DLL     "avutil-59.dll")
-    set(AVDEVICE_DLL   "avdevice-61.dll")
-    set(SWRESAMPLE_DLL "swresample-5.dll")
-    set(AVCODEC_DLL    "avcodec-61.dll")
-    set(AVFORMAT_DLL   "avformat-61.dll")
-    set(AVFILTER_DLL   "avfilter-10.dll")
-    set(SWSCALE_DLL    "swscale-8.dll")
-    if (XR_IS_UWP)
-        set(FFMPEG_PLATFORM_DIR "uwp")
-    endif()
+    # ffmpeg v8
+    set(AVUTIL_DLL     "avutil-60.dll")
+    set(AVDEVICE_DLL   "avdevice-62.dll")
+    set(SWRESAMPLE_DLL "swresample-6.dll")
+    set(AVCODEC_DLL    "avcodec-62.dll")
+    set(AVFORMAT_DLL   "avformat-62.dll")
+    set(AVFILTER_DLL   "avfilter-11.dll")
+    set(SWSCALE_DLL    "swscale-9.dll")
 
-    string(TOLOWER ${XR_TARGET_CPU_ARCH} XR_TARGET_CPU_ARCH_LOWERED)
-    set(FFMPEG_DIR ${PROJECT_SOURCE_DIR}/src/external/ffmpeg/${FFMPEG_PLATFORM_DIR}/${XR_TARGET_CPU_ARCH_LOWERED})    
+    if (XR_IS_UWP)       
+        # ffmpeg v7
+        set(AVUTIL_DLL     "avutil-59.dll")
+        set(AVDEVICE_DLL   "avdevice-61.dll")
+        set(SWRESAMPLE_DLL "swresample-5.dll")
+        set(AVCODEC_DLL    "avcodec-61.dll")
+        set(AVFORMAT_DLL   "avformat-61.dll")
+        set(AVFILTER_DLL   "avfilter-10.dll")
+        set(SWSCALE_DLL    "swscale-8.dll")
+
+        set(FFMPEG_PLATFORM_DIR "uwp")
+        string(TOLOWER ${XR_TARGET_CPU_ARCH} XR_TARGET_CPU_ARCH_LOWERED)
+        set(FFMPEG_DIR ${PROJECT_SOURCE_DIR}/src/external/ffmpeg/${FFMPEG_PLATFORM_DIR}/${XR_TARGET_CPU_ARCH_LOWERED})  
+    else()
+        FetchContent_Declare(
+            ffmpeg_binaries
+            URL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.0-latest-win64-gpl-shared-8.0.zip
+            DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        )
+        FetchContent_MakeAvailable(ffmpeg_binaries)
+        set(FFMPEG_DIR ${ffmpeg_binaries_SOURCE_DIR})
+    endif()
+  
     set(FFMPEG_BIN_DIR ${FFMPEG_DIR}/bin)
     set(FFMPEG_LIB_DIR ${FFMPEG_DIR}/lib)
 
