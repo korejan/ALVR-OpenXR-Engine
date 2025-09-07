@@ -692,6 +692,8 @@ struct OpenXrProgram final : IOpenXrProgram {
 
         m_runtimeType = FromString(instanceProperties.runtimeName);
 
+        Log::Write(Log::Level::Verbose, Fmt("Detected runtime type: %s", ToString(m_runtimeType)));
+
         const bool enableSRGBLinearization = [this]() {
             if (IsPrePicoPUI<5,4>())
                 return false;

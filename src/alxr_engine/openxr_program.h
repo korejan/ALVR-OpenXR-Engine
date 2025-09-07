@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <string_view>
 #include <vector>
+#include <tuple>
 
 struct ALXRStreamConfig;
 struct ALXRSystemProperties;
@@ -60,10 +61,21 @@ constexpr inline std::string_view ToString(const OxrRuntimeType t) {
 }
 
 constexpr inline OxrRuntimeType FromString(const std::string_view runtimeName) {
-    for (std::size_t idx = 0; idx < std::size_t(OxrRuntimeType::TypeCount); ++idx) {
-        const std::string_view namePrefix = ToString(OxrRuntimeType(idx));
-        if (runtimeName.starts_with(namePrefix))
-            return static_cast<OxrRuntimeType>(idx);
+    for (const auto& [name,rtType] : { 
+        std::make_tuple("SteamVR", OxrRuntimeType::SteamVR),
+        { "Monado", OxrRuntimeType::Monado },
+        { "Windows Mixed Reality", OxrRuntimeType::WMR },
+        { "Oculus", OxrRuntimeType::Oculus },
+        { "Pico", OxrRuntimeType::Pico },
+        { "VIVE WAVE", OxrRuntimeType::HTCWave },
+        { "MAGICLEAP", OxrRuntimeType::MagicLeap },
+        { "Snapdragon", OxrRuntimeType::SnapdragonMonado },
+        { "Android XR", OxrRuntimeType::AndroidXR },
+        { "Moohan", OxrRuntimeType::AndroidXR },
+    }) {
+        if (runtimeName.starts_with(name)) {
+            return rtType;
+        }
     }
     return OxrRuntimeType::Unknown;
 }
