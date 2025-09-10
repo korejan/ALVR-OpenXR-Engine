@@ -1449,7 +1449,7 @@ struct Texture {
             srcStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
             dstStageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT;
         }
-        if (oldLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR &&
+        else if ((oldLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR || oldLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR) &&
             newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
             srcAccessMask = (VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT);
             dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
@@ -1457,7 +1457,7 @@ struct Texture {
             dstStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
         }
         else if (oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
-            newLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR) {
+            (newLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR || newLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR)) {
             srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
             dstAccessMask = (VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT);
             srcStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -1530,7 +1530,7 @@ struct Texture {
             srcStageMask  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT_KHR;
             dstStageMask  = VK_PIPELINE_STAGE_2_TRANSFER_BIT_KHR;
         }
-        else if (m_vkLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR &&
+        else if ((m_vkLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR || m_vkLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR) &&
             newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
             srcAccessMask = (VK_ACCESS_2_SHADER_WRITE_BIT_KHR | VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR); // | VK_ACCESS_2_VIDEO_DECODE_WRITE_BIT_KHR);
             dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT_KHR;
@@ -1538,7 +1538,7 @@ struct Texture {
             dstStageMask  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT_KHR;
         }
         else if (m_vkLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
-            newLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR) {
+            (newLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DST_KHR || newLayout == VK_IMAGE_LAYOUT_VIDEO_DECODE_DPB_KHR)) {
             srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT_KHR;
             dstAccessMask = (VK_ACCESS_2_SHADER_WRITE_BIT_KHR | VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR); // | VK_ACCESS_2_VIDEO_DECODE_WRITE_BIT_KHR);
             srcStageMask  = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT_KHR;
@@ -2626,8 +2626,8 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
     static constexpr const char* const AVVulkanInstanceExts[] = {
 #if !defined(XR_USE_PLATFORM_ANDROID) && !defined(XR_DISABLE_DECODER_THREAD)
+        VK_EXT_LAYER_SETTINGS_EXTENSION_NAME,
         // VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,  only used for apple/macos support.
-        nullptr,
 #else
         nullptr,
 #endif
@@ -2649,7 +2649,18 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         VK_KHR_COOPERATIVE_MATRIX_EXTENSION_NAME,
         VK_NV_OPTICAL_FLOW_EXTENSION_NAME,
         VK_EXT_SHADER_OBJECT_EXTENSION_NAME,
+        VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME,
+#ifdef VK_EXT_host_image_copy
+        VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME,
+#endif
+#ifdef VK_KHR_shader_expect_assume
+        VK_KHR_SHADER_EXPECT_ASSUME_EXTENSION_NAME,
+#endif
         VK_KHR_VIDEO_MAINTENANCE_1_EXTENSION_NAME,
+#ifdef VK_KHR_video_maintenance2
+        VK_KHR_VIDEO_MAINTENANCE_2_EXTENSION_NAME,
+#endif
+
         /* Imports / exports */
         VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
         VK_EXT_EXTERNAL_MEMORY_DMA_BUF_EXTENSION_NAME,
@@ -2660,6 +2671,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME,
         VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME,
 #endif
+
         /* Video encoding / decoding */
         VK_KHR_VIDEO_QUEUE_EXTENSION_NAME,
         VK_KHR_VIDEO_ENCODE_QUEUE_EXTENSION_NAME,

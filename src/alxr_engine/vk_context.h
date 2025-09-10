@@ -168,6 +168,12 @@ struct DeviceFeaturesBase {
         .pNext = nullptr,
     };
 #endif
+#ifdef VK_KHR_video_maintenance2
+    VkPhysicalDeviceVideoMaintenance2FeaturesKHR videoMaintenance2 = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VIDEO_MAINTENANCE_2_FEATURES_KHR,
+        .pNext = nullptr,
+    };
+#endif
 #ifdef VK_EXT_shader_object
     VkPhysicalDeviceShaderObjectFeaturesEXT shaderObject = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT,
@@ -195,6 +201,24 @@ struct DeviceFeaturesBase {
 #ifdef VK_EXT_descriptor_buffer
     VkPhysicalDeviceDescriptorBufferFeaturesEXT  descriptorBuffer = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT,
+        .pNext = nullptr,
+    };
+#endif
+#ifdef VK_EXT_host_image_copy
+    VkPhysicalDeviceHostImageCopyFeaturesEXT hostCopy = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES_EXT,
+        .pNext = nullptr,
+    };
+#endif
+#ifdef VK_KHR_shader_subgroup_rotate
+    VkPhysicalDeviceShaderSubgroupRotateFeaturesKHR subgroupRotate = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_ROTATE_FEATURES_KHR,
+        .pNext = nullptr,
+    };
+#endif
+#ifdef VK_KHR_shader_expect_assume
+    VkPhysicalDeviceShaderExpectAssumeFeaturesKHR expectAssume = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_EXPECT_ASSUME_FEATURES_KHR,
         .pNext = nullptr,
     };
 #endif
