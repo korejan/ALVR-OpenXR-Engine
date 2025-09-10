@@ -117,6 +117,7 @@ bool VkContext::GetRequiredDeviceFeatures(ALXR::Vk::DeviceFeatures& requiredFeat
         return false;
     }
     dstFeatureV12.timelineSemaphore = srcFeatureV12.timelineSemaphore;
+    dstFeatureV12.scalarBlockLayout = srcFeatureV12.scalarBlockLayout;
     dstFeatureV12.bufferDeviceAddress = srcFeatureV12.bufferDeviceAddress;
     dstFeatureV12.hostQueryReset = srcFeatureV12.hostQueryReset;
     dstFeatureV12.storagePushConstant8 = srcFeatureV12.storagePushConstant8;
@@ -124,9 +125,11 @@ bool VkContext::GetRequiredDeviceFeatures(ALXR::Vk::DeviceFeatures& requiredFeat
     dstFeatureV12.storageBuffer8BitAccess = srcFeatureV12.storageBuffer8BitAccess;
     dstFeatureV12.uniformAndStorageBuffer8BitAccess = srcFeatureV12.uniformAndStorageBuffer8BitAccess;
     dstFeatureV12.shaderFloat16 = srcFeatureV12.shaderFloat16;
+    dstFeatureV12.shaderBufferInt64Atomics = srcFeatureV12.shaderBufferInt64Atomics;
     dstFeatureV12.shaderSharedInt64Atomics = srcFeatureV12.shaderSharedInt64Atomics;
     dstFeatureV12.vulkanMemoryModel = srcFeatureV12.vulkanMemoryModel;
     dstFeatureV12.vulkanMemoryModelDeviceScope = srcFeatureV12.vulkanMemoryModelDeviceScope;
+    dstFeatureV12.uniformBufferStandardLayout = srcFeatureV12.uniformBufferStandardLayout;
     dstFeatureV12.hostQueryReset = srcFeatureV12.hostQueryReset;
 #endif
 
@@ -138,6 +141,7 @@ bool VkContext::GetRequiredDeviceFeatures(ALXR::Vk::DeviceFeatures& requiredFeat
     dstFeatureV13.maintenance4 = srcFeatureV13.maintenance4;
     dstFeatureV13.synchronization2 = srcFeatureV13.synchronization2;
     dstFeatureV13.computeFullSubgroups = srcFeatureV13.computeFullSubgroups;
+    dstFeatureV13.subgroupSizeControl = srcFeatureV13.subgroupSizeControl;
     dstFeatureV13.shaderZeroInitializeWorkgroupMemory = srcFeatureV13.shaderZeroInitializeWorkgroupMemory;
     dstFeatureV13.pipelineCreationCacheControl = srcFeatureV13.pipelineCreationCacheControl;
 #endif
@@ -182,6 +186,17 @@ bool VkContext::GetRequiredDeviceFeatures(ALXR::Vk::DeviceFeatures& requiredFeat
         dstVideoMaintenance1.videoMaintenance1 = srcVideoMaintenance1.videoMaintenance1;
     } else {
         VkChainUnlink(requiredFeatures.features2, requiredFeatures.videoMaintenance1);
+    }
+#endif
+
+#ifdef VK_KHR_video_maintenance2
+    if (IsDeviceExtEnabled(VK_KHR_VIDEO_MAINTENANCE_2_EXTENSION_NAME)) {
+        auto& dstVideoMaintenance2 = requiredFeatures.videoMaintenance2;
+        const auto& srcVideoMaintenance2 = supportedFeatures.videoMaintenance2;
+        dstVideoMaintenance2.videoMaintenance2 = srcVideoMaintenance2.videoMaintenance2;
+    }
+    else {
+        VkChainUnlink(requiredFeatures.features2, requiredFeatures.videoMaintenance2);
     }
 #endif
 
@@ -236,6 +251,40 @@ bool VkContext::GetRequiredDeviceFeatures(ALXR::Vk::DeviceFeatures& requiredFeat
         VkChainUnlink(requiredFeatures.features2, requiredFeatures.shaderObject);
     }
 #endif
+
+#ifdef VK_KHR_shader_subgroup_rotate
+    if (IsDeviceExtEnabled(VK_KHR_SHADER_SUBGROUP_ROTATE_EXTENSION_NAME)) {
+        auto& dstSubgroupRotate = requiredFeatures.subgroupRotate;
+        const auto& srcSubgroupRotate = supportedFeatures.subgroupRotate;
+        dstSubgroupRotate.shaderSubgroupRotate = srcSubgroupRotate.shaderSubgroupRotate;
+        dstSubgroupRotate.shaderSubgroupRotateClustered = srcSubgroupRotate.shaderSubgroupRotateClustered;
+    }
+    else {
+        VkChainUnlink(requiredFeatures.features2, requiredFeatures.subgroupRotate);
+    }
+#endif
+
+#ifdef VK_EXT_host_image_copy
+    if (IsDeviceExtEnabled(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME)) {
+        auto& dstHostCopy = requiredFeatures.hostCopy;
+        const auto& srcHostCopy = supportedFeatures.hostCopy;
+        dstHostCopy.hostImageCopy = srcHostCopy.hostImageCopy;
+    }
+    else {
+        VkChainUnlink(requiredFeatures.features2, requiredFeatures.hostCopy);
+    }
+#endif
+
+#ifdef VK_KHR_shader_expect_assume
+    if (IsDeviceExtEnabled(VK_KHR_SHADER_EXPECT_ASSUME_EXTENSION_NAME)) {
+        auto& dstExpectAssume = requiredFeatures.expectAssume;
+        const auto& srcExpectAssume = supportedFeatures.expectAssume;
+        dstExpectAssume.shaderExpectAssume = srcExpectAssume.shaderExpectAssume;
+    }
+    else {
+        VkChainUnlink(requiredFeatures.features2, requiredFeatures.expectAssume);
+    }
+#endif
     return true;
 }
 
@@ -274,6 +323,9 @@ void DeviceFeatures::InitNextPtrs(const DeviceFeatures* const src /*= nullptr*/)
 #ifdef VK_KHR_video_maintenance1
     DF_SET_NEXT_PTR(videoMaintenance1);
 #endif
+#ifdef VK_KHR_video_maintenance2
+    DF_SET_NEXT_PTR(videoMaintenance2);
+#endif
 #ifdef VK_EXT_shader_object
     DF_SET_NEXT_PTR(shaderObject);
 #endif
@@ -288,6 +340,15 @@ void DeviceFeatures::InitNextPtrs(const DeviceFeatures* const src /*= nullptr*/)
 #endif
 #ifdef VK_EXT_descriptor_buffer
     DF_SET_NEXT_PTR(descriptorBuffer);
+#endif
+#ifdef VK_KHR_shader_subgroup_rotate
+    DF_SET_NEXT_PTR(subgroupRotate);
+#endif
+#ifdef VK_EXT_host_image_copy
+    DF_SET_NEXT_PTR(hostCopy);
+#endif
+#ifdef VK_KHR_shader_expect_assume
+    DF_SET_NEXT_PTR(expectAssume);
 #endif
 #ifdef VK_VERSION_1_3
     DF_SET_NEXT_PTR(featuresV13);
