@@ -3537,22 +3537,23 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         constexpr const std::uint32_t MaxCombinedImageSamplerYcbcrDescriptorCount = 4;
 
 #ifdef XR_USE_PLATFORM_ANDROID
-        const std::uint32_t descriptorSetCount = MaxCombinedImageSamplerYcbcrDescriptorCount * 12;
+        constexpr const std::uint32_t MaxDescriptorSets = 12;
 #else
-        const std::uint32_t descriptorSetCount = MaxCombinedImageSamplerYcbcrDescriptorCount * static_cast<std::uint32_t>(m_videoTextures.size());
+        const std::uint32_t MaxDescriptorSets = static_cast<std::uint32_t>(m_videoTextures.size());
 #endif
+        const std::uint32_t descriptorCount = MaxCombinedImageSamplerYcbcrDescriptorCount * MaxDescriptorSets;
 
         const std::array<const VkDescriptorPoolSize, 1> poolSizes{
             VkDescriptorPoolSize {
                 .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .descriptorCount = descriptorSetCount,
+                .descriptorCount = descriptorCount,
             }
         };
         const VkDescriptorPoolCreateInfo poolInfo {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .maxSets = descriptorSetCount,
+            .maxSets = MaxDescriptorSets,
             .poolSizeCount = static_cast<std::uint32_t>(poolSizes.size()),
             .pPoolSizes = poolSizes.data()
         };
@@ -3563,20 +3564,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         CHECK(m_videoStreamLayout.descriptorSetLayout != VK_NULL_HANDLE);
         m_DescriptorSetSlot = 0;
         m_descriptorSets.clear();
-        //
-        // The commented code will not work unless there is descriptorSetLayout per desciptor set, == VkDescriptorSetAllocateInfo::descriptorSetCount
-        // the first descriptorSetLayout could be duplicated but there is not much point, this is not a freqeuent operation.
-        //
-        //const VkDescriptorSetAllocateInfo allocInfo = {
-        //    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        //    .pNext = nullptr,
-        //    .descriptorPool = m_descriptorPool,
-        //    .descriptorSetCount = descriptorSetCount,
-        //    .pSetLayouts = &m_videoStreamLayout.descriptorSetLayout
-        //};
-        //m_descriptorSets.resize(descriptorSetCount, VK_NULL_HANDLE);
-        //CHECK_VKCMD(vkAllocateDescriptorSets(m_vkDevice, &allocInfo, m_descriptorSets.data()));
-        m_descriptorSets.resize(descriptorSetCount, VK_NULL_HANDLE);
+        m_descriptorSets.resize(MaxDescriptorSets, VK_NULL_HANDLE);
         for (auto& desciptor : m_descriptorSets) {
             const VkDescriptorSetAllocateInfo allocInfo = {
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
