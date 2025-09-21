@@ -30,7 +30,8 @@ namespace ALXR::VRCFT {
         inline Session& operator=(Session&&) = default;
 
         inline void Close() {
-            Log::Write(Log::Level::Info, "VRCFTServer: shutting down connection.");
+            const auto socket_id = static_cast<asio::detail::socket_type>(m_socket.native_handle());
+            Log::Write(Log::Level::Info, Fmt("VRCFTServer: shutting down connection, socket-id: %lu", socket_id));
             try {
                 m_socket.shutdown(tcp::socket::shutdown_both);
             }
@@ -43,7 +44,7 @@ namespace ALXR::VRCFT {
             catch (const asio::system_error& sysError) {
                 Log::Write(Log::Level::Error, Fmt("VRCFTServer: Failed to close connection, reason: \"%s\"", sysError.what()));
             }
-            Log::Write(Log::Level::Info, "VRCFTServer: connection closed.");
+            Log::Write(Log::Level::Info, Fmt("VRCFTServer: connection closed, socket-id: %lu", socket_id));
         }
 
         inline ~Session() {
@@ -66,14 +67,14 @@ namespace ALXR::VRCFT {
                 m_socket, asio::buffer(&buffer, sizeof(ALXRFacialEyePacket)),
                 [weakThis = weak_from_this()](const std::error_code ec, const std::size_t /*bytesTransferred*/)
                 {
-                    if (ec == asio::error::operation_aborted)
+                    if (ec == asio::error::operation_aborted || ec == asio::error::connection_aborted)
                         return;
                     if (const auto sharedThis = weakThis.lock()) {
                         auto& sendQueue = sharedThis->m_sendQueue;
                         sendQueue.pop_front();
                         if (ec) {
                             const auto errMsg = ec.message();
-                            Log::Write(Log::Level::Error, Fmt("VRCFTServer: Failed to send, reason: \"%s\"", errMsg.c_str()));
+                            Log::Write(Log::Level::Error, Fmt("VRCFTServer: Failed to send, error-code: %d, reason: \"%s\"", ec.value(), errMsg.c_str()));
                             return;
                         }
                         if (!sendQueue.empty()) {
@@ -166,7 +167,8 @@ namespace ALXR::VRCFT {
             m_acceptor.async_accept(m_socket, [this](std::error_code ec) {
                 if (!ec) {
                     try {
-                        Log::Write(Log::Level::Info, "VRCFTServer: connection accepted.");
+                        const auto socket_id = static_cast<asio::detail::socket_type>(m_socket.native_handle());
+                        Log::Write(Log::Level::Info, Fmt("VRCFTServer: connection accepted, socket-id: %lu", socket_id));
                         m_socket.set_option(socket_base::linger{ false,0 });
                         m_socket.set_option(asio::socket_base::keep_alive{ true });
 #ifndef XR_USE_PLATFORM_WIN32
