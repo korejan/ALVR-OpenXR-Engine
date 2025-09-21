@@ -45,7 +45,7 @@ enum class OxrRuntimeType
     TypeCount
 };
 
-constexpr inline std::string_view ToString(const OxrRuntimeType t) {
+constexpr inline const char* ToString(const OxrRuntimeType t) {
     switch (t) {
     case OxrRuntimeType::SteamVR:   return "SteamVR";
     case OxrRuntimeType::Monado:    return "Monado";
