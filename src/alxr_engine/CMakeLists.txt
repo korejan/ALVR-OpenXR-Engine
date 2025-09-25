@@ -28,8 +28,7 @@ FetchContent_MakeAvailable(readerwriterqueue)
 FetchContent_Declare(
   Eigen
   GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-  # Use master branch for now until 4.0 release branch soon? https://gitlab.com/libeigen/eigen/-/issues/2699
-  GIT_TAG master
+  GIT_TAG 5.0.0
   GIT_SHALLOW TRUE
   GIT_PROGRESS TRUE
 )
