@@ -49,7 +49,7 @@ enum class ALXREyeTrackingType : uint8_t {
     None = 0, // Not Support or Disabled
     FBEyeTrackingSocial,
     ExtEyeGazeInteraction,
-    AndroidAvatarEyes,
+    AndroidEyeTracking,
     Auto,
     TypeCount
 };

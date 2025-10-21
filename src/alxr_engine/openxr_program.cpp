@@ -569,7 +569,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         { XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME, false },
         { XR_EXT_HAND_TRACKING_EXTENSION_NAME, false },
 
-        { XR_ANDROID_AVATAR_EYES_EXTENSION_NAME, false },
+        { XR_ANDROID_EYE_TRACKING_EXTENSION_NAME, false },
         { XR_ANDROID_FACE_TRACKING_EXTENSION_NAME, false },
 
         { XR_FB_DISPLAY_REFRESH_RATE_EXTENSION_NAME, false },
@@ -739,7 +739,7 @@ struct OpenXrProgram final : IOpenXrProgram {
                 { XR_ANDROID_FACE_TRACKING_EXTENSION_NAME,    !m_options->IsSelected(ALXRFacialExpressionType::Android) },
                 { XR_FB_EYE_TRACKING_SOCIAL_EXTENSION_NAME,   !m_options->IsSelected(ALXREyeTrackingType::FBEyeTrackingSocial) },
                 { XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME, !m_options->IsSelected(ALXREyeTrackingType::ExtEyeGazeInteraction) },
-                { XR_ANDROID_AVATAR_EYES_EXTENSION_NAME,      !m_options->IsSelected(ALXREyeTrackingType::AndroidAvatarEyes) },
+                { XR_ANDROID_EYE_TRACKING_EXTENSION_NAME,     !m_options->IsSelected(ALXREyeTrackingType::AndroidEyeTracking) },
             };
         }();
         const auto IsExcluded = [&exclusionMap](const std::string_view& extName) {
@@ -1196,28 +1196,28 @@ struct OpenXrProgram final : IOpenXrProgram {
 
     XrEyeTrackerANDROID m_eyeTrackerANDROID{ XR_NULL_HANDLE };
     PFN_xrDestroyEyeTrackerANDROID xrDestroyEyeTrackerANDROID{ nullptr };
-    PFN_xrGetEyesInfoANDROID xrGetEyesInfoANDROID{nullptr};
+    PFN_xrGetFineTrackingEyesInfoANDROID xrGetFineTrackingEyesInfoANDROID{nullptr};
 
-    bool InitializeAndroidAvatarEyesTracker()
+    bool InitializeAndroidEyeTracking()
     {
-        if (!IsExtEnabled(XR_ANDROID_AVATAR_EYES_EXTENSION_NAME) ||
-            (m_options && !m_options->IsSelected(ALXREyeTrackingType::AndroidAvatarEyes))) {
-            Log::Write(Log::Level::Warning, Fmt("%s is not enabled/supported.", XR_ANDROID_AVATAR_EYES_EXTENSION_NAME));
+        if (!IsExtEnabled(XR_ANDROID_EYE_TRACKING_EXTENSION_NAME) ||
+            (m_options && !m_options->IsSelected(ALXREyeTrackingType::AndroidEyeTracking))) {
+            Log::Write(Log::Level::Warning, Fmt("%s is not enabled/supported.", XR_ANDROID_EYE_TRACKING_EXTENSION_NAME));
             return false;
         }
 
-        XrSystemAvatarEyesPropertiesANDROID eyeTrackingSystemProperties{
-            .type = XR_TYPE_SYSTEM_AVATAR_EYES_PROPERTIES_ANDROID,
+        XrSystemEyeTrackingPropertiesANDROID eyeTrackingSystemProperties{
+            .type = XR_TYPE_SYSTEM_EYE_TRACKING_PROPERTIES_ANDROID,
             .next = nullptr,
-            .supportsAvatarEyes = XR_FALSE
+            .supportsEyeTracking = XR_FALSE
         };
         XrSystemProperties systemProperties{
             .type = XR_TYPE_SYSTEM_PROPERTIES,
             .next = &eyeTrackingSystemProperties
         };
         if (XR_FAILED(xrGetSystemProperties(m_instance, m_systemId, &systemProperties)) ||
-            !eyeTrackingSystemProperties.supportsAvatarEyes) {
-            Log::Write(Log::Level::Warning, Fmt("%s is not enabled/supported.", XR_ANDROID_AVATAR_EYES_EXTENSION_NAME));
+            !eyeTrackingSystemProperties.supportsEyeTracking) {
+            Log::Write(Log::Level::Warning, Fmt("%s is not enabled/supported.", XR_ANDROID_EYE_TRACKING_EXTENSION_NAME));
             return false;
         }
 
@@ -1234,18 +1234,18 @@ struct OpenXrProgram final : IOpenXrProgram {
             xrDestroyEyeTrackerANDROID = nullptr;
         }
         if (XR_FAILED(xrGetInstanceProcAddr(
-            m_instance, "xrGetEyesInfoANDROID", (PFN_xrVoidFunction*)(&xrGetEyesInfoANDROID)))) {
-            xrGetEyesInfoANDROID = nullptr;
+            m_instance, "xrGetFineTrackingEyesInfoANDROID", (PFN_xrVoidFunction*)(&xrGetFineTrackingEyesInfoANDROID)))) {
+            xrGetFineTrackingEyesInfoANDROID = nullptr;
         }
 
         if (xrCreateEyeTrackerANDROID == nullptr ||
             xrDestroyEyeTrackerANDROID == nullptr ||
-            xrGetEyesInfoANDROID == nullptr) {
-            Log::Write(Log::Level::Warning, Fmt("%s is not enabled/supported.", XR_ANDROID_AVATAR_EYES_EXTENSION_NAME));
+            xrGetFineTrackingEyesInfoANDROID == nullptr) {
+            Log::Write(Log::Level::Warning, Fmt("%s is not enabled/supported.", XR_ANDROID_EYE_TRACKING_EXTENSION_NAME));
             return false;
         }
 
-        Log::Write(Log::Level::Info, Fmt("%s is enabled.", XR_ANDROID_AVATAR_EYES_EXTENSION_NAME));
+        Log::Write(Log::Level::Info, Fmt("%s is enabled.", XR_ANDROID_EYE_TRACKING_EXTENSION_NAME));
 
         // Create Eye Tracker
         constexpr const XrEyeTrackerCreateInfoANDROID createInfo = {
@@ -1348,7 +1348,7 @@ struct OpenXrProgram final : IOpenXrProgram {
     bool InitializeEyeTrackers() {
         if (InitializeFBEyeTrackers())
             return true;
-        if (InitializeAndroidAvatarEyesTracker())
+        if (InitializeAndroidEyeTracking())
             return true;
         return InitExtEyeGazeInteraction();
     }
@@ -3793,7 +3793,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         }
 
         if (m_eyeTrackerANDROID != XR_NULL_HANDLE &&
-            (noOptions || m_options->IsSelected(ALXREyeTrackingType::AndroidAvatarEyes)))
+            (noOptions || m_options->IsSelected(ALXREyeTrackingType::AndroidEyeTracking)))
         {
             constexpr const XrEyeANDROID XrEyeIdentity = {
                 .eyeState = XR_EYE_STATE_INVALID_ANDROID,
@@ -3802,25 +3802,27 @@ struct OpenXrProgram final : IOpenXrProgram {
             const XrEyesGetInfoANDROID gazesInfo = {
                 .type = XR_TYPE_EYES_GET_INFO_ANDROID,
                 .next = nullptr,
+                .time = ptime,
                 .baseSpace = m_viewSpace,
-                .time = ptime
             };
             XrEyesANDROID eyeGazes = {
                 .type = XR_TYPE_EYES_ANDROID,
                 .next = nullptr,
                 .eyes = {XrEyeIdentity, XrEyeIdentity},
-                .mode = XR_EYE_TRACKING_MODE_BOTH_ANDROID,
+                .mode = XR_EYE_TRACKING_MODE_NOT_TRACKING_ANDROID,
             };
-            assert(m_eyeTrackerANDROID != XR_NULL_HANDLE && xrGetEyesInfoANDROID != nullptr);
-            xrGetEyesInfoANDROID(m_eyeTrackerANDROID, &gazesInfo, &eyeGazes);
+            assert(m_eyeTrackerANDROID != XR_NULL_HANDLE && xrGetFineTrackingEyesInfoANDROID != nullptr);
+            xrGetFineTrackingEyesInfoANDROID(m_eyeTrackerANDROID, &gazesInfo, &eyeGazes);
 
-            newPacket.eyeTrackerType = ALXREyeTrackingType::AndroidAvatarEyes;
-            static_assert(XR_EYE_INDEX_LEFT_ANDROID == 0 &&
-                            XR_EYE_INDEX_RIGHT_ANDROID == 1);
-            for (std::size_t idx = 0; idx < MaxEyeCount; ++idx) {
-                const auto& gaze = eyeGazes.eyes[idx];
-                newPacket.eyeGazePoses[idx] = gaze.eyePose;
-                newPacket.isEyeGazePoseValid[idx] = static_cast<std::uint8_t>(gaze.eyeState);
+            if (eyeGazes.mode != XR_EYE_TRACKING_MODE_NOT_TRACKING_ANDROID) {
+                newPacket.eyeTrackerType = ALXREyeTrackingType::AndroidEyeTracking;
+
+                static_assert(XR_EYE_INDEX_LEFT_ANDROID == 0 && XR_EYE_INDEX_RIGHT_ANDROID == 1);
+                for (std::size_t idx = 0; idx < MaxEyeCount; ++idx) {
+                    const auto& gaze = eyeGazes.eyes[idx];
+                    newPacket.eyeGazePoses[idx] = gaze.eyePose;
+                    newPacket.isEyeGazePoseValid[idx] = static_cast<std::uint8_t>(gaze.eyeState);
+                }
             }
         }
 

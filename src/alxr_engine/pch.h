@@ -115,7 +115,7 @@
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 #include <openxr/openxr_reflection.h>
-#include "android_avatar_eyes.h"
+#include "android_eye_tracking.h"
 
 #ifdef XR_USE_OXR_PICO
     // These are no longer declared/defined in the Pico OpenXR SDK v2.1.0.
