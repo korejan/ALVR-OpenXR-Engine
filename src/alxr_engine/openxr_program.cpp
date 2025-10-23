@@ -1724,7 +1724,7 @@ struct OpenXrProgram final : IOpenXrProgram {
     bool InitializeProxyServer()
     {
         if (m_options && m_options->NoFTServer) {
-            Log::Write(Log::Level::Info,
+            Log::Write(Log::Level::Verbose,
                 "\"no_tracking_server\" option is enabled, tracking proxy server will not be created. "
                 "No third-party/external apps such as VRCFT will be able to connect.");
             return false;
