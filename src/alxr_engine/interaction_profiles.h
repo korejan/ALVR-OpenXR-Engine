@@ -84,7 +84,7 @@ constexpr inline const InteractionProfile EyeGazeProfile{
     .userEyesPath = ALXR::UserEyesExt
 };
 
-constexpr inline const std::size_t ProfileMapSize = 13;
+constexpr inline const std::size_t ProfileMapSize = 14;
 constexpr inline const std::array<const InteractionProfile, ProfileMapSize> InteractionProfileMap{
     InteractionProfile {
         .boolMap {
@@ -776,6 +776,69 @@ constexpr inline const std::array<const InteractionProfile, ProfileMapSize> Inte
         .path = "/interaction_profiles/ml/ml2_controller",
         .extensionName = XR_ML_ML2_CONTROLLER_INTERACTION_EXTENSION_NAME,
         .quitPath = nullptr,
+    },
+    InteractionProfile{
+        .boolMap {
+            LeftMap { ButtonMap
+                {ALVR_INPUT_X_CLICK, PrimaryClick},
+                {ALVR_INPUT_Y_CLICK, SecondaryClick},
+                {ALVR_INPUT_JOYSTICK_CLICK, ThumbstickClick},
+                MapEnd
+            },
+            RightMap { ButtonMap
+                {ALVR_INPUT_A_CLICK, PrimaryClick},
+                {ALVR_INPUT_B_CLICK, SecondaryClick},
+                {ALVR_INPUT_JOYSTICK_CLICK, ThumbstickClick},
+                MapEnd
+            },
+        },
+        .scalarMap {
+            LeftMap { ButtonMap
+                {ALVR_INPUT_GRIP_VALUE, SqueezeValue},
+                {ALVR_INPUT_TRIGGER_VALUE, TriggerValue},
+                MapEnd
+            },
+            RightMap { ButtonMap
+                {ALVR_INPUT_GRIP_VALUE, SqueezeValue},
+                {ALVR_INPUT_TRIGGER_VALUE, TriggerValue},
+                MapEnd
+            }
+        },
+        .vector2fMap {
+            LeftMap { ButtonMap
+                {ALVR_INPUT_JOYSTICK_X, ThumbstickPos},
+                MapEnd
+            },
+            RightMap { ButtonMap
+                {ALVR_INPUT_JOYSTICK_X, ThumbstickPos},
+                MapEnd
+            }
+        },
+        .scalarToBoolMap {
+            LeftMap { ButtonMap
+                {ALVR_INPUT_GRIP_CLICK, SqueezeValue},
+                {ALVR_INPUT_TRIGGER_CLICK, TriggerValue},
+                MapEnd
+            },
+            RightMap { ButtonMap
+                {ALVR_INPUT_GRIP_CLICK, SqueezeValue},
+                {ALVR_INPUT_TRIGGER_CLICK, TriggerValue},
+                MapEnd
+            }
+        },
+        .path = "/interaction_profiles/khr/generic_controller",
+        .extensionName = XR_KHR_GENERIC_CONTROLLER_EXTENSION_NAME,
+        .quitPath = nullptr,
+        .passthroughModes { PassthroughModeButtons {
+            .blendMode {
+                ALVR_BUTTON_FLAG(ALVR_INPUT_JOYSTICK_CLICK),
+                ALVR_BUTTON_FLAG(ALVR_INPUT_A_CLICK)
+            },
+            .maskMode {
+                ALVR_BUTTON_FLAG(ALVR_INPUT_JOYSTICK_CLICK),
+                ALVR_BUTTON_FLAG(ALVR_INPUT_B_CLICK)
+            }
+        }}
     },
 };
 }

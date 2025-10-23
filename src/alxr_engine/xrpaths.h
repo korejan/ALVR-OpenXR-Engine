@@ -46,5 +46,7 @@ namespace ALXR::XRPaths {
 	constexpr inline const char* const TrackpadForce = "trackpad/force";
 	constexpr inline const char* const ShoulderClick = "shoulder/click";
 	constexpr inline const char* const GazeExtPose = "gaze_ext/pose";
+	constexpr inline const char* const PrimaryClick = "primary/click";
+	constexpr inline const char* const SecondaryClick = "secondary/click";
 }
 #endif

@@ -558,6 +558,8 @@ struct OpenXrProgram final : IOpenXrProgram {
         { XR_KHR_ANDROID_THREAD_SETTINGS_EXTENSION_NAME, false },
 #endif
         { XR_KHR_VISIBILITY_MASK_EXTENSION_NAME, false },
+        { XR_KHR_GENERIC_CONTROLLER_EXTENSION_NAME, false },
+
         // EXT extensions
 #ifdef XR_USE_PLATFORM_UWP
 #pragma message ("UWP Extensions Enabled.")
