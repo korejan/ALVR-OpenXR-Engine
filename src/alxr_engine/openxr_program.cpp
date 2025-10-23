@@ -1346,9 +1346,9 @@ struct OpenXrProgram final : IOpenXrProgram {
     }
 
     bool InitializeEyeTrackers() {
-        if (InitializeFBEyeTrackers())
-            return true;
         if (InitializeAndroidEyeTracking())
+            return true;
+        if (InitializeFBEyeTrackers())
             return true;
         return InitExtEyeGazeInteraction();
     }
@@ -1437,7 +1437,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         if (xrGetFaceCalibrationStateANDROID) {
             XrBool32 isCalibrated = XR_FALSE;
             if (XR_FAILED(xrGetFaceCalibrationStateANDROID(m_faceTrackerANDROID, &isCalibrated)) || isCalibrated == XR_FALSE) {
-                Log::Write(Log::Level::Warning, Fmt("Face tracking has not been calibrated, please go to system sets and calibrate"));
+                Log::Write(Log::Level::Warning, Fmt("Face tracking has not been calibrated, please go to system settings and calibrate"));
             }
         }
 
@@ -1695,21 +1695,23 @@ struct OpenXrProgram final : IOpenXrProgram {
     }
 
     bool InitializeFacialTracker() {
+        if (InitializeAndroidFacialTracker())
+            return true;
         if (InitializeFBFacialTrackerV2())
             return true;
         if (InitializeFBFacialTracker())
             return true;
         if (InitializeHTCFacialTracker())
             return true;
-        return InitializeAndroidFacialTracker();
+        return false;
     }
 
     bool IsFacialTrackingEnabled() const override {
+        if (m_faceTrackerANDROID != XR_NULL_HANDLE)
+            return true;
         if (faceTrackerFBV2_ != XR_NULL_HANDLE)
             return true;
         if (faceTrackerFB_ != XR_NULL_HANDLE)
-            return true;
-        if (m_faceTrackerANDROID != XR_NULL_HANDLE)
             return true;
         return std::any_of(
             m_facialTrackersHTC.begin(), m_facialTrackersHTC.end(),
@@ -2876,10 +2878,9 @@ struct OpenXrProgram final : IOpenXrProgram {
 
     inline bool UseNetworkPredicatedDisplayTime() const
     {
-        return !IsRuntime(OxrRuntimeType::SteamVR) &&
-               !IsRuntime(OxrRuntimeType::Monado) &&
-               !IsRuntime(OxrRuntimeType::SnapdragonMonado) &&
-               !IsRuntime(OxrRuntimeType::AndroidXR);
+        // Meta's runtime is the only runtime I know that's not been problematic
+        // with not using predicated display outputted from xrWaitFrame
+        return IsRuntime(OxrRuntimeType::Oculus);
     }
 
     inline XrCompositionLayerPassthroughFB MakeCompositionLayerPassthroughFB() const {
@@ -3660,6 +3661,7 @@ struct OpenXrProgram final : IOpenXrProgram {
 
     static_assert(XR_FACE_CONFIDENCE_COUNT_FB <= XR_FACE_CONFIDENCE2_COUNT_FB);
     std::array<float, XR_FACE_CONFIDENCE2_COUNT_FB> m_confidences {};
+    std::array<float, XR_FACE_REGION_CONFIDENCE_COUNT_ANDROID> m_regionConfidences{};
 
     inline void PollFaceEyeTracking(const XrTime& ptime, ALXRFacialEyePacket& newPacket)
     {
@@ -3762,11 +3764,13 @@ struct OpenXrProgram final : IOpenXrProgram {
             XrFaceStateANDROID expressionWeights = {
                 .type = XR_TYPE_FACE_STATE_ANDROID,
                 .next = nullptr,
-                .parametersCountOutput = XR_FACE_PARAMETER_COUNT_ANDROID,
+                .parametersCapacityInput = XR_FACE_PARAMETER_COUNT_ANDROID,
                 .parameters = newPacket.expressionWeights,
                 .faceTrackingState = XR_FACE_TRACKING_STATE_TRACKING_ANDROID,
                 .sampleTime = ptime,
                 .isValid = XR_FALSE,
+                .regionConfidencesCapacityInput = XR_FACE_REGION_CONFIDENCE_COUNT_ANDROID,
+                .regionConfidences = m_regionConfidences.data(),
             };
             assert(m_faceTrackerANDROID != XR_NULL_HANDLE && xrGetFaceStateANDROID != nullptr);
             xrGetFaceStateANDROID(m_faceTrackerANDROID, &expressionInfo, &expressionWeights);

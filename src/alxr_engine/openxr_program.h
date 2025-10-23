@@ -72,6 +72,7 @@ constexpr inline OxrRuntimeType FromString(const std::string_view runtimeName) {
         { "Snapdragon", OxrRuntimeType::SnapdragonMonado },
         { "Android XR", OxrRuntimeType::AndroidXR },
         { "Moohan", OxrRuntimeType::AndroidXR },
+        { "Meta XR Simulator", OxrRuntimeType::Oculus },
     }) {
         if (runtimeName.starts_with(name)) {
             return rtType;
