@@ -40,6 +40,7 @@ enum class OxrRuntimeType
     MagicLeap,
     SnapdragonMonado,
     AndroidXR,
+    VirtualDesktopXR,
     Unknown,
 ////////////////////////
     TypeCount
@@ -56,6 +57,7 @@ constexpr inline const char* ToString(const OxrRuntimeType t) {
     case OxrRuntimeType::MagicLeap: return "MAGICLEAP";
     case OxrRuntimeType::SnapdragonMonado: return "Snapdragon";
     case OxrRuntimeType::AndroidXR: return "Android XR";
+    case OxrRuntimeType::VirtualDesktopXR: return "VirtualDesktopXR";
     default: return "Unknown";
     }
 }
@@ -73,6 +75,7 @@ constexpr inline OxrRuntimeType FromString(const std::string_view runtimeName) {
         { "Android XR", OxrRuntimeType::AndroidXR },
         { "Moohan", OxrRuntimeType::AndroidXR },
         { "Meta XR Simulator", OxrRuntimeType::Oculus },
+        { "VirtualDesktopXR", OxrRuntimeType::VirtualDesktopXR },
     }) {
         if (runtimeName.starts_with(name)) {
             return rtType;
