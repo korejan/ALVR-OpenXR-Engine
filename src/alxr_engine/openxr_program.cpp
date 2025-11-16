@@ -49,6 +49,7 @@
 #include "interaction_profiles.h"
 #include "interaction_manager.h"
 #include "eye_gaze_interaction.h"
+#include "visibility_masks.h"
 
 #ifdef XR_USE_PLATFORM_ANDROID
 #ifndef ALXR_ENGINE_DISABLE_QUIT_ACTION
@@ -896,6 +897,13 @@ struct OpenXrProgram final : IOpenXrProgram {
         CHECK(m_systemId != XR_NULL_SYSTEM_ID);
 
         LogViewConfigurations();
+        {
+            XrSystemProperties xrSystemProps = { .type = XR_TYPE_SYSTEM_PROPERTIES, .next = nullptr };
+            if (XR_SUCCEEDED(xrGetSystemProperties(m_instance, m_systemId, &xrSystemProps))) {
+                const std::string_view systemName = xrSystemProps.systemName;
+                m_isQuestPro = systemName.find("Quest Pro") != std::string_view::npos;
+            }
+        }
 
         m_availableBlendModes = GetEnvironmentBlendModes(m_viewConfigType, false);
         if (std::find(m_availableBlendModes.begin(), m_availableBlendModes.end(), m_environmentBlendMode) == m_availableBlendModes.end() && !m_availableBlendModes.empty()) {
@@ -2247,7 +2255,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         m_configViews.clear();
     }
 
-    bool GetHiddenAreaMesh(size_t viewIdx, IOpenXrProgram::HiddenAreaMesh& mesh) const override {
+    bool GetHiddenAreaMeshFromRuntime(size_t viewIdx, IOpenXrProgram::HiddenAreaMesh& mesh) const {
         if (!IsExtEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME))
             return false;
 
@@ -2327,6 +2335,24 @@ struct OpenXrProgram final : IOpenXrProgram {
         }
 #endif
         return true;
+    }
+
+    bool GetHiddenAreaMesh(size_t viewIdx, IOpenXrProgram::HiddenAreaMesh& mesh) const override {
+
+        if (GetHiddenAreaMeshFromRuntime(viewIdx, mesh)) {
+            return true;
+        }
+
+        if (m_isQuestPro) {
+            Log::Write(Log::Level::Verbose, "Falling back to statically known visibility mask.");
+            assert(viewIdx < 2);
+            const auto& mask = ALXR::VisibilityMasks::QuestPro[viewIdx];
+            mesh.indices.assign(mask.indices.begin(), mask.indices.end());
+            mesh.vertices.assign(mask.vertices.begin(), mask.vertices.end());
+            return true;
+        }
+
+        return false;
     }
 
     bool UpdateHiddenAreaMeshes() {
@@ -4029,7 +4055,8 @@ struct OpenXrProgram final : IOpenXrProgram {
     XrSessionState m_sessionState{XR_SESSION_STATE_UNKNOWN};
     std::atomic<bool> m_sessionRunning{false};
     OxrRuntimeType m_runtimeType { OxrRuntimeType::Unknown };
-
+    bool m_isQuestPro{ false };
+    
     XrEventDataBuffer m_eventDataBuffer{
         .type = XR_TYPE_EVENT_DATA_BUFFER,
         .next = nullptr
