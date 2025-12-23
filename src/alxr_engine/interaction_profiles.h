@@ -7,7 +7,7 @@
 #include <array>
 #include <optional>
 #include "xrpaths.h"
-#include "ALVR-common/packet_types.h"
+#include "packet_types.h"
 
 namespace ALXR {;
 

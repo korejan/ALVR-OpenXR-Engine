@@ -7,7 +7,7 @@
 #include <thread>
 
 #include "alxr_ctypes.h"
-#include "ALVR-common/packet_types.h"
+#include "packet_types.h"
 #include "fec.h"
 
 struct IDecoderPlugin;

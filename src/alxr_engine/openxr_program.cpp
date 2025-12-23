@@ -43,7 +43,7 @@
 //#include "alxr_engine.h"
 #include "alxr_ctypes.h"
 #include "alxr_facial_eye_tracking_packet.h"
-#include "ALVR-common/packet_types.h"
+#include "packet_types.h"
 #include "timing.h"
 #include "latency_manager.h"
 #include "interaction_profiles.h"

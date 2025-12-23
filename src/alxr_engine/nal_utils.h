@@ -3,7 +3,7 @@
 #define ALXR_NAL_UTILS_H
 
 #include <span>
-#include "ALVR-common/packet_types.h"
+#include "packet_types.h"
 #include "alxr_ctypes.h"
 
 enum class NalType : std::uint8_t

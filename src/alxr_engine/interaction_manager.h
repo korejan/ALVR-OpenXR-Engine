@@ -21,7 +21,7 @@
 #include "xr_utils.h"
 #include "interaction_profiles.h"
 #include "timing.h"
-#include "ALVR-common/packet_types.h"
+#include "packet_types.h"
 #include "eye_gaze_interaction.h"
 
 namespace Side {

@@ -98,7 +98,7 @@ else()
         ${D3D_SHADERS})
 endif()
 set_target_properties(alxr_engine PROPERTIES FOLDER ${SAMPLES_FOLDER})
-target_compile_definitions(alxr_engine PRIVATE ALXR_CLIENT ASIO_STANDALONE)
+target_compile_definitions(alxr_engine PRIVATE ASIO_STANDALONE)
 if (XR_IS_UWP)
     target_compile_definitions(alxr_engine PRIVATE XR_USE_PLATFORM_UWP)
 endif()
@@ -120,27 +120,7 @@ add_dependencies(alxr_engine
     run_alxr_engine_hlsl_sm6_compiles
 )
 
-set(ALVR_ROOT_DIR ${PROJECT_SOURCE_DIR}/../../../../.. CACHE PATH "Root directory of ALVR source")
-set(ALVR_COMMON_DIR ${ALVR_ROOT_DIR}/alvr/client/android/ALVR-common)
-set(ALVR_OLD_CLIENT_DIR ${ALVR_ROOT_DIR}/alvr/client/android/app/src/main/cpp)
-
-file(GLOB_RECURSE ALVR_COMMON_HEADERS ${ALVR_COMMON_DIR}/*.h)
-file(GLOB_RECURSE ALVR_COMMON_SOURCE ${ALVR_COMMON_DIR}/*.c ${ALVR_COMMON_DIR}/*.cpp)
-add_library(alvr_common
-    ${ALVR_COMMON_HEADERS}
-    ${ALVR_OLD_CLIENT_DIR}/fec.h
-    ${ALVR_OLD_CLIENT_DIR}/latency_collector.h
-    ${ALVR_COMMON_SOURCE}
-    ${ALVR_OLD_CLIENT_DIR}/fec.cpp
-    ${ALVR_OLD_CLIENT_DIR}/latency_collector.cpp)
-target_include_directories(alvr_common PRIVATE
-    ${ALVR_COMMON_DIR}
-)
-target_compile_definitions(alvr_common PRIVATE ALXR_CLIENT)
-if (MSVC)
-    target_compile_definitions(alvr_common PRIVATE _CRT_SECURE_NO_WARNINGS PRIVATE _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS)
-    target_compile_options(alvr_common PRIVATE /Zc:wchar_t /Zc:forScope /W3 /Zi)
-endif()
+add_subdirectory(alvr_common)
 
 set(FFMPEG_LIBS)
 if(DISABLE_DECODER_SUPPORT OR ANDROID)
