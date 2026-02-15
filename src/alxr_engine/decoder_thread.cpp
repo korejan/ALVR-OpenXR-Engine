@@ -15,7 +15,7 @@ bool XrDecoderThread::QueuePacket(const VideoFrame& header, const XrDecoderThrea
 		fecQueue->addVideoPacket(header, packet, fecFailure);
 		if (isComplete = fecQueue->reconstruct()) {
 			const size_t frameBufferSize = fecQueue->getFrameByteSize();
-			const auto frameBufferPtr = reinterpret_cast<const std::uint8_t*>(fecQueue->getFrameBuffer());
+			const auto frameBufferPtr = fecQueue->getFrameBuffer();
 			decoderPlugin->QueuePacket({ frameBufferPtr, frameBufferSize }, header.trackingFrameIndex);
 			fecQueue->clearFecFailure();
 		}

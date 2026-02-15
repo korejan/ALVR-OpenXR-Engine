@@ -9,7 +9,7 @@
 #include <vector>
 #include <mutex>
 #include "packet_types.h"
-#include "reedsolomon/rs.h"
+#include "rs_auto.h"
 
 class FECQueue {
 public:
@@ -27,68 +27,78 @@ public:
     }
 
     bool reconstruct();
-    const std::byte *getFrameBuffer() const;
-    int getFrameByteSize() const;
 
-    bool fecFailure() const;
-    void clearFecFailure();
+    const std::uint8_t* getFrameBuffer() const {
+        return &m_frameBuffer[0];
+    }
+
+    uint32_t getFrameByteSize() const {
+        return m_currentFrame.frameByteSize;
+    }
+
+    bool fecFailure() const {
+        return m_fecFailure;
+    }
+
+    void clearFecFailure() {
+        m_fecFailure = false;
+    }
 
     FECQueue(const FECQueue&) = delete;
     FECQueue& operator=(const FECQueue&) = delete;
 private:
 
     VideoFrame m_currentFrame;
-    size_t m_shardPackets;
-    size_t m_blockSize;
-    size_t m_totalDataShards;
-    size_t m_totalParityShards;
-    size_t m_totalShards;
+    uint32_t m_shardPackets;
+    uint32_t m_blockSize;
+    uint32_t m_totalDataShards;
+    uint32_t m_totalParityShards;
+    uint32_t m_totalShards;
     uint32_t m_firstPacketOfNextFrame = 0;
-    std::vector<std::vector<unsigned char>> m_marks;
-    std::vector<std::byte> m_frameBuffer;
+    std::vector<std::vector<std::uint8_t>> m_marks;
+    std::vector<std::uint8_t> m_frameBuffer;
     std::vector<uint32_t> m_receivedDataShards;
     std::vector<uint32_t> m_receivedParityShards;
     std::vector<bool> m_recoveredPacket;
-    std::vector<std::byte *> m_shards;
+    std::vector<std::uint8_t*> m_shards;
     bool m_recovered;
     bool m_fecFailure;
 
-    struct ReedSolomon final : reed_solomon {
+    struct ReedSolomon final {
 
-        constexpr const reed_solomon& base() const { return static_cast<const reed_solomon&>(*this); }
-        constexpr reed_solomon& base() { return static_cast<reed_solomon&>(*this); }
-
+        std::vector<std::uint8_t> m_rs_buf{};
+        reed_solomon* m_rs{ nullptr };
+        
         ReedSolomon(const ReedSolomon&) = delete;
         ReedSolomon& operator=(const ReedSolomon&) = delete;
 
-        constexpr ReedSolomon() noexcept
-        : reed_solomon{}{}
-
-		ReedSolomon(const std::size_t data_shards, const std::size_t parity_shards) noexcept
-        : reed_solomon{} {
-            if (reed_solomon_new(static_cast<std::int32_t>(data_shards), static_cast<std::int32_t>(parity_shards), this) < 0) {
-                base() = {};
-            }
-		}
-
-        constexpr ReedSolomon(ReedSolomon&& src) noexcept
-        : reed_solomon{ src.base() } {
-            src.base() = {};
-        }
-
-        constexpr ReedSolomon& operator=(ReedSolomon&& src) noexcept {
-            base() = src.base();
-            src.base() = {};
-            return *this;
-        }
-
-        ~ReedSolomon() noexcept {
-            reed_solomon_release(this);
-        }
+        ReedSolomon() noexcept = default;
+        ReedSolomon(ReedSolomon&& src) noexcept = default;
+        ReedSolomon& operator=(ReedSolomon&& src) noexcept = default;
 
         bool isValid() const noexcept {
-            return m != nullptr && parity != nullptr;
+            return m_rs != nullptr;
+        }
+
+		bool init(const std::uint32_t data_shards, const std::uint32_t parity_shards) {
+            const size_t newSize = reed_solomon_bufsize(data_shards, parity_shards);
+            if (m_rs_buf.size() < newSize) {
+                m_rs_buf.resize(newSize);
+            }
+            m_rs = reed_solomon_new_static(m_rs_buf.data(), newSize, 
+                static_cast<int>(data_shards),
+                static_cast<int>(parity_shards));
+            return isValid();
 		}
+
+        int reconstruct(uint8_t** shards, uint8_t* marks, std::uint32_t nr_shards, std::uint32_t bs) {
+            if (!isValid()) {
+                return -1;
+            }
+            return reed_solomon_reconstruct(m_rs, shards, marks, 
+                static_cast<int>(nr_shards),
+                static_cast<int>(bs));
+        }
 	};
     ReedSolomon m_rs{};
 

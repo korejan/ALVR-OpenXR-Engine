@@ -53,7 +53,7 @@ void FECQueue::addVideoPacket(const VideoFrame& packet, const FECQueue::VideoPac
                      m_totalParityShards,
                      m_currentFrame.frameByteSize, m_currentFrame.fecPercentage, m_totalShards,
                      m_shardPackets, m_blockSize);
-            for (size_t packet = 0; packet < m_shardPackets; ++packet) {
+            for (uint32_t packet = 0; packet < m_shardPackets; ++packet) {
                 FrameLog(m_currentFrame.trackingFrameIndex,
                          "packetIndex=%d, shards=%u:%u",
                          packet, m_receivedDataShards[packet], m_receivedParityShards[packet]);
@@ -84,13 +84,12 @@ void FECQueue::addVideoPacket(const VideoFrame& packet, const FECQueue::VideoPac
 
         m_shards.resize(m_totalShards);
 
-        m_rs = ReedSolomon{ m_totalDataShards, m_totalParityShards };
-        if (!m_rs.isValid()) {
+        if (!m_rs.init(m_totalDataShards, m_totalParityShards)) {
             return;
         }
 
         m_marks.resize(m_shardPackets);
-        for (size_t i = 0; i < m_shardPackets; ++i) {
+        for (uint32_t i = 0; i < m_shardPackets; ++i) {
             m_marks[i].resize(m_totalShards);
             memset(&m_marks[i][0], 1, m_totalShards);
         }
@@ -102,8 +101,8 @@ void FECQueue::addVideoPacket(const VideoFrame& packet, const FECQueue::VideoPac
         memset(&m_frameBuffer[0], 0, m_totalShards * m_blockSize);
 
         // Padding packets are not sent, so we can fill bitmap by default.
-        const size_t padding = (m_shardPackets - fecDataPackets % m_shardPackets) % m_shardPackets;
-        for (size_t i = 0; i < padding; ++i) {
+        const uint32_t padding = (m_shardPackets - fecDataPackets % m_shardPackets) % m_shardPackets;
+        for (uint32_t i = 0; i < padding; ++i) {
             m_marks[m_shardPackets - i - 1][m_totalDataShards - 1] = 0;
             ++m_receivedDataShards[m_shardPackets - i - 1];
         }
@@ -118,7 +117,7 @@ void FECQueue::addVideoPacket(const VideoFrame& packet, const FECQueue::VideoPac
         }else{
             // was parity packet
             startPacket = m_currentFrame.packetCounter - (m_currentFrame.fecIndex - padding);
-            uint64_t m_startOfParityPacket = m_currentFrame.packetCounter - (m_currentFrame.fecIndex - m_totalDataShards * m_shardPackets);
+            const uint32_t m_startOfParityPacket = m_currentFrame.packetCounter - (m_currentFrame.fecIndex - m_totalDataShards * m_shardPackets);
             nextStartPacket = m_startOfParityPacket + m_totalParityShards * m_shardPackets;
         }
         if(m_firstPacketOfNextFrame != 0 && m_firstPacketOfNextFrame != startPacket) {
@@ -129,7 +128,7 @@ void FECQueue::addVideoPacket(const VideoFrame& packet, const FECQueue::VideoPac
                      m_currentFrame.videoFrameIndex, m_totalDataShards, m_totalParityShards,
                      m_currentFrame.frameByteSize, m_currentFrame.fecPercentage, m_totalShards,
                      m_shardPackets, m_blockSize, m_firstPacketOfNextFrame, startPacket, m_currentFrame.packetCounter);
-            for (size_t packet = 0; packet < m_shardPackets; packet++) {
+            for (uint32_t packet = 0; packet < m_shardPackets; ++packet) {
                 FrameLog(m_currentFrame.trackingFrameIndex,
                          "packetIndex=%d, shards=%u:%u",
                          packet, m_receivedDataShards[packet], m_receivedParityShards[packet]);
@@ -144,8 +143,8 @@ void FECQueue::addVideoPacket(const VideoFrame& packet, const FECQueue::VideoPac
                  m_currentFrame.videoFrameIndex, m_currentFrame.frameByteSize, m_currentFrame.fecPercentage, m_totalDataShards,
                  m_totalParityShards, m_totalShards, m_shardPackets, m_blockSize);
     }
-    const size_t shardIndex = packet.fecIndex / m_shardPackets;
-    const size_t packetIndex = packet.fecIndex % m_shardPackets;
+    const uint32_t shardIndex = packet.fecIndex / m_shardPackets;
+    const uint32_t packetIndex = packet.fecIndex % m_shardPackets;
     if (m_marks[packetIndex][shardIndex] == 0) {
         // Duplicate packet.
         LOGI("Packet duplication. packetCounter=%d fecIndex=%d", packet.packetCounter,
@@ -159,7 +158,7 @@ void FECQueue::addVideoPacket(const VideoFrame& packet, const FECQueue::VideoPac
         ++m_receivedParityShards[packetIndex];
     }
 
-    std::byte *p = &m_frameBuffer[packet.fecIndex * ALVR_MAX_VIDEO_BUFFER_SIZE];
+    std::uint8_t* p = &m_frameBuffer[packet.fecIndex * ALVR_MAX_VIDEO_BUFFER_SIZE];
     const std::size_t payloadSize = vidFrameBuffer.size();
     std::memcpy(p, vidFrameBuffer.data(), payloadSize);
     if (payloadSize != size_t(ALVR_MAX_VIDEO_BUFFER_SIZE)) {
@@ -176,7 +175,7 @@ bool FECQueue::reconstruct() {
     bool ret = true;
     // On server side, we encoded all buffer in one call of reed_solomon_encode.
     // But client side, we should split shards for more resilient recovery.
-    for (size_t packet = 0; packet < m_shardPackets; ++packet) {
+    for (uint32_t packet = 0; packet < m_shardPackets; ++packet) {
         if (m_recoveredPacket[packet]) {
             continue;
         }
@@ -186,10 +185,9 @@ bool FECQueue::reconstruct() {
             m_recoveredPacket[packet] = true;
             continue;
         }
-        m_rs.shards = m_receivedDataShards[packet] +
-                       m_receivedParityShards[packet]; //Don't let RS complain about missing parity packets
-
-        if (m_rs.shards < (int) m_totalDataShards) {
+        
+        const uint32_t receivedShards = m_receivedDataShards[packet] + m_receivedParityShards[packet];
+        if (receivedShards < m_totalDataShards) {
             // Not enough parity data
             ret = false;
             continue;
@@ -200,13 +198,13 @@ bool FECQueue::reconstruct() {
                  packet, m_receivedDataShards[packet], m_totalDataShards,
                  m_receivedParityShards[packet], m_totalParityShards);
 
-        for (size_t i = 0; i < m_totalShards; ++i) {
+        for (uint32_t i = 0; i < m_totalShards; ++i) {
             m_shards[i] = &m_frameBuffer[(i * m_shardPackets + packet) * ALVR_MAX_VIDEO_BUFFER_SIZE];
         }
 
-        int result = reed_solomon_reconstruct(&m_rs, (unsigned char**)&m_shards[0],
-                                              &m_marks[packet][0],
-                                              m_totalShards, ALVR_MAX_VIDEO_BUFFER_SIZE);
+        const int result = m_rs.reconstruct(m_shards.data(),
+                                            &m_marks[packet][0],
+                                            m_totalShards, ALVR_MAX_VIDEO_BUFFER_SIZE);
         m_recoveredPacket[packet] = true;
         // We should always provide enough parity to recover the missing data successfully.
         // If this fails, something is probably wrong with our FEC state.
@@ -225,20 +223,4 @@ bool FECQueue::reconstruct() {
         FrameLog(m_currentFrame.trackingFrameIndex, "Frame was successfully recovered by FEC.");
     }
     return ret;
-}
-
-const std::byte *FECQueue::getFrameBuffer() const {
-    return &m_frameBuffer[0];
-}
-
-int FECQueue::getFrameByteSize() const {
-    return m_currentFrame.frameByteSize;
-}
-
-bool FECQueue::fecFailure() const {
-    return m_fecFailure;
-}
-
-void FECQueue::clearFecFailure() {
-    m_fecFailure = false;
 }
