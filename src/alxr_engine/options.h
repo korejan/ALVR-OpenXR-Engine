@@ -134,6 +134,10 @@ struct Options {
 
     XrVersion XrApiVersion = XR_API_VERSION_1_0;
 
+    using UserPresenceSendFn = void (*)(bool);
+
+    UserPresenceSendFn UserPresenceSend = nullptr;
+
     std::uint16_t TrackingServerPortNo = 49192;
 
     XrColorSpaceFB DisplayColorSpace = XR_COLOR_SPACE_QUEST_FB;

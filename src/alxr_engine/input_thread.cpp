@@ -93,12 +93,24 @@ void XrInputThread::Run(const XrInputThread::StartCtx& ctx) {
     } scopedJNIEnv{ reinterpret_cast<JavaVM*>(ctx.clientCtx->applicationVM) };
 #endif
 
-    ctx.programPtr->SetAndroidAppThread(AndroidThreadType::AppWorker);
+    auto CheckAndSetAndroidAppThread = [&ctx, lastSessionRunning = false](const bool isSessionRunning) mutable {
+        if (isSessionRunning == lastSessionRunning)
+            return;
+        if (isSessionRunning) {
+            ctx.programPtr->SetAndroidAppThread(AndroidThreadType::AppWorker);
+        }
+        lastSessionRunning = isSessionRunning;
+    };
 
     auto nextWakeTime = XrSteadyClock::now();
-	while (m_isRunning.load()) {        
+	while (m_isRunning.load()) {
 
-        Update(ctx);
+        const bool isSessionRunning = ctx.programPtr->IsSessionRunning();
+        CheckAndSetAndroidAppThread(isSessionRunning);
+
+        if (isSessionRunning) {
+            Update(ctx);
+        }
 
         const auto targetFrameDuration = GetTargetFrameDuration();
 

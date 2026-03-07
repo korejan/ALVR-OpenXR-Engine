@@ -123,6 +123,7 @@ bool alxr_init(const ALXRClientCtx* rCtx, /*[out]*/ ALXRSystemProperties* system
         options->PassthroughMode = ctx.passthroughMode;
         options->NoVisibilityMasks = ctx.noVisibilityMasks;
         options->NoMultiviewRendering = ctx.noMultiviewRendering;
+        options->UserPresenceSend = ctx.userPresenceSend;
         if (ctx.internalDataPath != nullptr) {
             std::error_code ec;
             options->InternalDataPath = ctx.internalDataPath;

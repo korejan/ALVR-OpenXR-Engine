@@ -404,8 +404,8 @@ struct OpenXrProgram final : IOpenXrProgram {
         Log::Write(Log::Level::Verbose, "Destroying OpenXrProgram");
         
         if (IsSessionRunning()) {
-            xrEndSession(m_session);
             m_sessionRunning.store(false);
+            xrEndSession(m_session);
         }
 
         if (m_ptLayerData.reconPassthroughLayer != XR_NULL_HANDLE) {
@@ -571,6 +571,12 @@ struct OpenXrProgram final : IOpenXrProgram {
         { XR_EXT_LOCAL_FLOOR_EXTENSION_NAME, false },
         { XR_EXT_EYE_GAZE_INTERACTION_EXTENSION_NAME, false },
         { XR_EXT_HAND_TRACKING_EXTENSION_NAME, false },
+        //
+        // NOTE: XR_EXT_USER_PRESENCE_EXTENSION_NAME is not needed atm.
+        //       Prefer sending user presence messages based on transitions to/from XR_SESSION_STATE_VISIBLE
+        //       as that should cover both cases and is a core spec requirement.
+        // 
+        //{ XR_EXT_USER_PRESENCE_EXTENSION_NAME, false },
 
         { XR_ANDROID_EYE_TRACKING_EXTENSION_NAME, false },
         { XR_ANDROID_FACE_TRACKING_EXTENSION_NAME, false },
@@ -1158,6 +1164,7 @@ struct OpenXrProgram final : IOpenXrProgram {
 
         SetDeviceColorSpace();
         UpdateSupportedDisplayRefreshRates();
+        InitializeUserPresence();
         InitializePassthroughAPI();
         InitializeEyeTrackers();
         InitializeFacialTracker();
@@ -1263,6 +1270,28 @@ struct OpenXrProgram final : IOpenXrProgram {
             .next = nullptr
         };
         return XR_SUCCEEDED(xrCreateEyeTrackerANDROID(m_session, &createInfo, &m_eyeTrackerANDROID)) && m_eyeTrackerANDROID != XR_NULL_HANDLE;
+    }
+
+    void InitializeUserPresence() {
+        if (!IsExtEnabled(XR_EXT_USER_PRESENCE_EXTENSION_NAME)) {
+            Log::Write(Log::Level::Warning, Fmt("%s is not enabled/supported.", XR_EXT_USER_PRESENCE_EXTENSION_NAME));
+            return;
+        }
+
+        XrSystemUserPresencePropertiesEXT systemUserPresenceProperties = {
+            .type = XR_TYPE_SYSTEM_USER_PRESENCE_PROPERTIES_EXT,
+            .next = nullptr,
+            .supportsUserPresence = XR_FALSE,
+        };
+        XrSystemProperties systemProperties = {
+            .type = XR_TYPE_SYSTEM_PROPERTIES,
+            .next = &systemUserPresenceProperties,
+        };
+        if (XR_FAILED(xrGetSystemProperties(m_instance, m_systemId, &systemProperties)) ||
+            !systemUserPresenceProperties.supportsUserPresence) {
+            Log::Write(Log::Level::Warning, "System does not support user presence events.");
+            return;
+        }
     }
 
     XrEyeTrackerFB eyeTrackerFB_ = XR_NULL_HANDLE;
@@ -2128,33 +2157,30 @@ struct OpenXrProgram final : IOpenXrProgram {
     }
 
     void SetPerformanceLevels() {
-        if (!IsSessionRunning())
+        if (!IsExtEnabled(XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME))
             return;
 
-        if (IsExtEnabled(XR_EXT_PERFORMANCE_SETTINGS_EXTENSION_NAME)) {
-            PFN_xrPerfSettingsSetPerformanceLevelEXT setPerfLevel = nullptr;
-            if (XR_FAILED(xrGetInstanceProcAddr
-            (
-                m_instance,
-                "xrPerfSettingsSetPerformanceLevelEXT",
-                reinterpret_cast<PFN_xrVoidFunction*>(&setPerfLevel)
-            ))) {
-                Log::Write(Log::Level::Warning, "xrGetInstanceProcAddr failed to get address for xrPerfSettingsSetPerformanceLevelEXT.");
-                setPerfLevel = nullptr;
-            }
-            if (setPerfLevel) {
-                if (XR_FAILED(setPerfLevel(m_session, XR_PERF_SETTINGS_DOMAIN_CPU_EXT, XR_PERF_SETTINGS_LEVEL_SUSTAINED_HIGH_EXT)))
-                    Log::Write(Log::Level::Warning, "Failed to set CPU performance level");
-                if (XR_FAILED(setPerfLevel(m_session, XR_PERF_SETTINGS_DOMAIN_GPU_EXT, XR_PERF_SETTINGS_LEVEL_BOOST_EXT)))
-                    Log::Write(Log::Level::Warning, "Failed to set GPU performance level");
-            }
+        PFN_xrPerfSettingsSetPerformanceLevelEXT setPerfLevel = nullptr;
+        if (XR_FAILED(xrGetInstanceProcAddr
+        (
+            m_instance,
+            "xrPerfSettingsSetPerformanceLevelEXT",
+            reinterpret_cast<PFN_xrVoidFunction*>(&setPerfLevel)
+        ))) {
+            Log::Write(Log::Level::Warning, "xrGetInstanceProcAddr failed to get address for xrPerfSettingsSetPerformanceLevelEXT.");
+            setPerfLevel = nullptr;
+        }
+        if (setPerfLevel) {
+            if (XR_FAILED(setPerfLevel(m_session, XR_PERF_SETTINGS_DOMAIN_CPU_EXT, XR_PERF_SETTINGS_LEVEL_SUSTAINED_HIGH_EXT)))
+                Log::Write(Log::Level::Warning, "Failed to set CPU performance level");
+            if (XR_FAILED(setPerfLevel(m_session, XR_PERF_SETTINGS_DOMAIN_GPU_EXT, XR_PERF_SETTINGS_LEVEL_BOOST_EXT)))
+                Log::Write(Log::Level::Warning, "Failed to set GPU performance level");
         }
     }
 
 #ifdef XR_USE_PLATFORM_ANDROID
     inline bool SetAndroidAppThread(const pid_t threadId, const AndroidThreadType threadType) {
-        if (!IsSessionRunning() ||
-            !IsExtEnabled(XR_KHR_ANDROID_THREAD_SETTINGS_EXTENSION_NAME))
+        if (!IsExtEnabled(XR_KHR_ANDROID_THREAD_SETTINGS_EXTENSION_NAME))
             return false;
         
         PFN_xrSetAndroidApplicationThreadKHR setAndroidAppThreadFn = nullptr;
@@ -2171,7 +2197,7 @@ struct OpenXrProgram final : IOpenXrProgram {
         Log::Write(Log::Level::Info, Fmt("Setting android app thread, type: %lu, thread-id: %d", threadType, threadId));
         const auto result = setAndroidAppThreadFn(m_session, static_cast<XrAndroidThreadTypeKHR>(threadType), threadId);
         if (XR_FAILED(result)) {
-            Log::Write(Log::Level::Info, Fmt("Failed setting android app thread, type: %lu, thread-id: %d, result-id: %lu", threadType, threadId, result));
+            Log::Write(Log::Level::Warning, Fmt("Failed setting android app thread, type: %lu, thread-id: %d, result-id: %lu", threadType, threadId, result));
         }
         return XR_SUCCEEDED(result);
     }
@@ -2663,12 +2689,20 @@ struct OpenXrProgram final : IOpenXrProgram {
                     visibilityMaskChanged = true;
                     break;
                 }
+                case XR_TYPE_EVENT_DATA_USER_PRESENCE_CHANGED_EXT: {
+                    const auto& userPresenceEvent = *reinterpret_cast<const XrEventDataUserPresenceChangedEXT*>(event);
+                    Log::Write(Log::Level::Verbose,
+                        Fmt("user presence changed, is present? %s", userPresenceEvent.isUserPresent ? "true" : "false"));
+                    SendUserPresence(userPresenceEvent.isUserPresent);
+                    break;
+                }
                 default: {
                     Log::Write(Log::Level::Verbose, Fmt("Ignoring event type %d", event->type));
                     break;
                 }
             }
         }
+
         if (visibilityMaskChanged) {
             UpdateHiddenAreaMeshes();
         }
@@ -2689,6 +2723,9 @@ struct OpenXrProgram final : IOpenXrProgram {
 
         switch (m_sessionState) {
             case XR_SESSION_STATE_SYNCHRONIZED: {
+                if (oldState == XR_SESSION_STATE_VISIBLE) {
+                    SendUserPresence(false);
+                }
                 m_delayOnGuardianChanged = true;
                 break;
             }
@@ -2701,17 +2738,17 @@ struct OpenXrProgram final : IOpenXrProgram {
                 };
                 XrResult result;
                 CHECK_XRCMD(result = xrBeginSession(m_session, &sessionBeginInfo));
-                m_sessionRunning = (result == XR_SUCCESS);
                 SetPerformanceLevels();
                 SetAndroidAppThread(AndroidThreadType::AppMain);
                 SetAndroidAppThread(AndroidThreadType::RendererMain);
+                m_sessionRunning = (result == XR_SUCCESS);
                 break;
             }
             case XR_SESSION_STATE_STOPPING: {
                 CHECK(m_session != XR_NULL_HANDLE);
                 StopPassthroughMode();
-                CHECK_XRCMD(xrEndSession(m_session))
                 m_sessionRunning = false;
+                CHECK_XRCMD(xrEndSession(m_session))
                 break;
             }
             case XR_SESSION_STATE_EXITING: {
@@ -2724,6 +2761,12 @@ struct OpenXrProgram final : IOpenXrProgram {
                 *exitRenderLoop = true;
                 // Poll for a new instance.
                 *requestRestart = true;
+                break;
+            }
+            case  XR_SESSION_STATE_VISIBLE: {
+                if (oldState == XR_SESSION_STATE_SYNCHRONIZED) {
+                    SendUserPresence(true);
+                }
                 break;
             }
             default:
@@ -3227,6 +3270,11 @@ struct OpenXrProgram final : IOpenXrProgram {
             .timeout = XR_INFINITE_DURATION
         };
         if (XR_FAILED(xrWaitSwapchainImage(swapChain.handle, &waitInfo))) {
+            constexpr const XrSwapchainImageReleaseInfo releaseInfo{
+                .type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO,
+                .next = nullptr,
+            };
+            xrReleaseSwapchainImage(swapChain.handle, &releaseInfo);
             return static_cast<const std::uint32_t>(-1);
         }
         return swapchainImageIndex;
@@ -4014,6 +4062,13 @@ struct OpenXrProgram final : IOpenXrProgram {
 
     bool enqueueGuardianChanged() {
         return enqueueGuardianChanged(m_lastPredicatedDisplayTime);
+    }
+
+    void SendUserPresence(bool isPresent) {
+        if (m_options && m_options->UserPresenceSend) {
+            Log::Write(Log::Level::Verbose, Fmt("Sending user presence, is present: %s", isPresent ? "true" : "false"));
+            m_options->UserPresenceSend(isPresent);
+        }
     }
 
     virtual inline void Resume() override {}

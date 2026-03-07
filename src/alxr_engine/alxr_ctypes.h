@@ -149,10 +149,11 @@ typedef struct ALXRClientCtx
     void (*viewsConfigSend)(const ALXRViewConfig* view_config);
     uint64_t (*pathStringToHash)(const char* path);
     void (*timeSyncSend)(const TimeSync* data);
-    void (*videoErrorReportSend)();
+    void (*videoErrorReportSend)(void);
     void (*batterySend)(uint64_t device_path, float gauge_value, bool is_plugged);
+    void (*userPresenceSend)(bool);
     void (*setWaitingNextIDR)(const bool);
-    void (*requestIDR)();
+    void (*requestIDR)(void);
 
     ALXRVersion     firmwareVersion;
     ALXRVersion     xrApiVersion;
