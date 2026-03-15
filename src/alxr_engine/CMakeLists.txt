@@ -28,7 +28,7 @@ FetchContent_MakeAvailable(readerwriterqueue)
 FetchContent_Declare(
   Eigen
   GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-  GIT_TAG 5.0.0
+  GIT_TAG 5.0.1
   GIT_SHALLOW TRUE
   GIT_PROGRESS TRUE
 )
