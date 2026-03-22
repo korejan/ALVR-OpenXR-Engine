@@ -102,9 +102,11 @@ void InitCuda()
     // Find the GPU which is selected by Vulkan
     for (int current_device = 0; current_device < device_count; ++current_device)
     {
+        int computeMode = -1;
         cudaDeviceProp deviceProp;
         cudaGetDeviceProperties(&deviceProp, current_device);
-        if ((deviceProp.computeMode != cudaComputeModeProhibited))
+        cudaDeviceGetAttribute(&computeMode, cudaDevAttrComputeMode, current_device);
+        if (computeMode != cudaComputeModeProhibited)
         {
             // Compare the cuda device UUID with vulkan UUID
             int ret = std::memcmp((void*)&deviceProp.uuid, m_vkDeviceUUID.data(), m_vkDeviceUUID.size());
