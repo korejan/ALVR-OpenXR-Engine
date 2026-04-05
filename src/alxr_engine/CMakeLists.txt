@@ -172,7 +172,7 @@ elseif (WIN32)
     else()
         FetchContent_Declare(
             ffmpeg_binaries
-            URL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.0-latest-win64-gpl-shared-8.0.zip
+            URL https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip
             DOWNLOAD_EXTRACT_TIMESTAMP TRUE
         )
         FetchContent_MakeAvailable(ffmpeg_binaries)
