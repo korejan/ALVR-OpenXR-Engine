@@ -11,6 +11,7 @@
 #include <optional>
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include "alxr_ctypes.h"
 
 #ifndef ALXR_EIGEN_CONSTEXPR_INIT
 #if defined(__GNUC__) && !defined(__clang__)
@@ -44,16 +45,40 @@ inline Eigen::Vector3f ToVector3f(const XrVector3f& v) {
     return Eigen::Vector3f{ v.x, v.y, v.z };
 }
 
+constexpr inline Eigen::Vector3f ToVector3f(const ALXRVector3f& v) {
+    return Eigen::Vector3f{{ v.x, v.y, v.z }};
+}
+
 inline XrVector3f ToXrVector3f(const Eigen::Vector3f& v) {
     return XrVector3f{ v.x(), v.y(), v.z() };
+}
+
+constexpr inline ALXRVector3f ToALXRVector3f(const XrVector3f& v) {
+    return { v.x, v.y, v.z };
+}
+
+/*constexpr*/ inline ALXRVector3f ToALXRVector3f(const Eigen::Vector3f& v) {
+    return { v.x(), v.y(), v.z() };
 }
 
 inline Eigen::Quaternionf ToQuaternionf(const XrQuaternionf& q) {
     return Eigen::Quaternionf{ q.w, q.x, q.y, q.z };
 }
 
+inline Eigen::Quaternionf ToQuaternionf(const ALXRQuaternionf& q) {
+    return Eigen::Quaternionf{ q.w, q.x, q.y, q.z };
+}
+
 inline XrQuaternionf ToXrQuaternionf(const Eigen::Quaternionf& q) {
     return XrQuaternionf{ q.x(), q.y(), q.z(), q.w() };
+}
+
+constexpr inline ALXRQuaternionf ToALXRQuaternionf(const XrQuaternionf& v) {
+    return { v.x, v.y, v.z, v.w };
+}
+
+/*constexpr*/ inline ALXRQuaternionf ToALXRQuaternionf(const Eigen::Quaternionf& v) {
+    return { v.x(), v.y(), v.z(), v.w() };
 }
 
 inline Eigen::Affine3f ToAffine3f(const XrPosef& pose) {
@@ -63,14 +88,40 @@ inline Eigen::Affine3f ToAffine3f(const XrPosef& pose) {
         .rotate(ToQuaternionf(pose.orientation));
 }
 
+inline Eigen::Affine3f ToAffine3f(const ALXRPosef& pose) {
+    return ToAffine3f(reinterpret_cast<const XrPosef&>(pose));
+}
+
 inline Eigen::Matrix4f ToMatrix4f(const XrPosef& pose) {
     return ToAffine3f(pose).matrix();
 }
 
-inline XrPosef ToPosef(const Eigen::Affine3f& at) {
+inline Eigen::Matrix4f ToMatrix4f(const ALXRPosef& pose) {
+    return ToMatrix4f(reinterpret_cast<const XrPosef&>(pose));
+}
+
+inline XrPosef ToPosef(const Eigen::Quaternionf& rot, const Eigen::Vector3f& pos) {
     return XrPosef {
-        .orientation = ToXrQuaternionf(Eigen::Quaternionf(at.rotation())),
-        .position = ToXrVector3f(at.translation()),
+        .orientation = ToXrQuaternionf(rot),
+        .position = ToXrVector3f(pos),
+    };
+}
+
+inline XrPosef ToPosef(const Eigen::Affine3f& at) {
+    return ToPosef(Eigen::Quaternionf(at.rotation()), at.translation());
+}
+
+constexpr inline ALXRPosef ToALXRPosef(const XrPosef& p) {
+    return {
+        .orientation = ToALXRQuaternionf(p.orientation),
+        .position = ToALXRVector3f(p.position),
+    };
+}
+
+/*constexpr*/ inline ALXRPosef ToALXRPosef(const Eigen::Affine3f& p) {
+    return {
+        .orientation = ToALXRQuaternionf(Eigen::Quaternionf{p.rotation()}),
+        .position = ToALXRVector3f(p.translation()),
     };
 }
 
