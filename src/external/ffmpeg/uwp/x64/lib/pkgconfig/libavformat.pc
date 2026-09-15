@@ -5,9 +5,9 @@ includedir=../../../build/Win10UWP/x64/include
 
 Name: libavformat
 Description: FFmpeg container format library
-Version: 61.1.100
+Version: 63.1.101
 Requires: 
-Requires.private: libavcodec >= 61.3.100, libswresample >= 5.1.100, libavutil >= 59.8.100
+Requires.private: libavcodec >= 63.1.101, libswresample >= 7.1.101, libavutil >= 61.1.101
 Conflicts:
 Libs: -L${libdir}  -lavformat 
 Libs.private: ws2_32.lib

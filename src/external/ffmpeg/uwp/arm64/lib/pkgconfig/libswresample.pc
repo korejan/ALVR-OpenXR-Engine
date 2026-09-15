@@ -5,9 +5,9 @@ includedir=../../../build/Win10UWP/arm64/include
 
 Name: libswresample
 Description: FFmpeg audio resampling library
-Version: 5.1.100
+Version: 7.1.101
 Requires: 
-Requires.private: libavutil >= 59.8.100
+Requires.private: libavutil >= 61.1.101
 Conflicts:
 Libs: -L${libdir}  -lswresample 
 Libs.private: 

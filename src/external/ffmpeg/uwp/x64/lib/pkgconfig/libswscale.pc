@@ -5,9 +5,9 @@ includedir=../../../build/Win10UWP/x64/include
 
 Name: libswscale
 Description: FFmpeg image rescaling library
-Version: 8.1.100
+Version: 10.1.101
 Requires: 
-Requires.private: libavutil >= 59.8.100
+Requires.private: libavutil >= 61.1.101
 Conflicts:
 Libs: -L${libdir}  -lswscale 
 Libs.private: 

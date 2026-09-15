@@ -5,10 +5,10 @@ includedir=../../../build/Win10UWP/x64/include
 
 Name: libavcodec
 Description: FFmpeg codec library
-Version: 61.3.100
+Version: 63.1.101
 Requires: 
-Requires.private: libswresample >= 5.1.100, libavutil >= 59.8.100
+Requires.private: libswresample >= 7.1.101, libavutil >= 61.1.101
 Conflicts:
 Libs: -L${libdir}  -lavcodec 
-Libs.private: mfplat.lib mfuuid.lib ole32.lib strmiids.lib dxgi.lib d3d11.lib dxgi.lib d3d12.lib ole32.lib
+Libs.private: mfplat.lib mfuuid.lib ole32.lib strmiids.lib dxgi.lib d3d11.lib ole32.lib dxgi.lib d3d12.lib
 Cflags: -I${includedir}
