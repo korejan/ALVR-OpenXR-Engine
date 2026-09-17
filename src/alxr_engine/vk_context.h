@@ -222,6 +222,30 @@ struct DeviceFeaturesBase {
         .pNext = nullptr,
     };
 #endif
+#ifdef VK_KHR_workgroup_memory_explicit_layout
+    VkPhysicalDeviceWorkgroupMemoryExplicitLayoutFeaturesKHR explicitMemLayout = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_WORKGROUP_MEMORY_EXPLICIT_LAYOUT_FEATURES_KHR,
+        .pNext = nullptr,
+    };
+#endif
+#ifdef VK_EXT_shader_replicated_composites
+    VkPhysicalDeviceShaderReplicatedCompositesFeaturesEXT replicatedComposites = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_REPLICATED_COMPOSITES_FEATURES_EXT,
+        .pNext = nullptr,
+    };
+#endif
+#ifdef VK_EXT_shader_long_vector
+    VkPhysicalDeviceShaderLongVectorFeaturesEXT longVector = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_LONG_VECTOR_FEATURES_EXT,
+        .pNext = nullptr,
+    };
+#endif
+#ifdef VK_EXT_zero_initialize_device_memory
+    VkPhysicalDeviceZeroInitializeDeviceMemoryFeaturesEXT zeroInitDeviceMemory = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ZERO_INITIALIZE_DEVICE_MEMORY_FEATURES_EXT,
+        .pNext = nullptr,
+    };
+#endif
 #ifdef VK_VERSION_1_3
     VkPhysicalDeviceVulkan13Features featuresV13 = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,

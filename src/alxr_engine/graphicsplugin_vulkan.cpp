@@ -2439,7 +2439,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         return list;
     }
 
-    static std::vector<std::string> GetAvailableInstanceExts() {
+    static std::vector<std::string> GetAvailableInstanceExts(const std::span<const char* const> enabledLayers = {}) {
         std::vector<std::string> results;
 
         const auto add_extensions = [&](const char* layerName) {
@@ -2459,21 +2459,12 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
         // add non-layer extensions (layerName==nullptr).
         add_extensions(nullptr);
 
-        // add layers extensions.
-        {
-            uint32_t layerCount = 0;
-            if (vkEnumerateInstanceLayerProperties(&layerCount, nullptr) != VK_SUCCESS) {
-                goto lastStep;
-            }
-            std::vector<VkLayerProperties> availableLayers{ layerCount };
-            if (vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data()) != VK_SUCCESS) {
-                goto lastStep;
-            }
-            for (const VkLayerProperties& layer : availableLayers) {
-                add_extensions(layer.layerName);
-            }
+        // add extensions of only the layers which will be enabled, extensions belonging to an
+        // installed but not enabled layer are rejected by vkCreateInstance.
+        for (const char* const layerName : enabledLayers) {
+            add_extensions(layerName);
         }
-    lastStep:
+
         std::sort(results.begin(), results.end());
         return results;
     }
@@ -2653,6 +2644,16 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 #ifdef VK_EXT_host_image_copy
         VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME,
 #endif
+        VK_KHR_WORKGROUP_MEMORY_EXPLICIT_LAYOUT_EXTENSION_NAME,
+#ifdef VK_EXT_shader_replicated_composites
+        VK_EXT_SHADER_REPLICATED_COMPOSITES_EXTENSION_NAME,
+#endif
+#ifdef VK_EXT_shader_long_vector
+        VK_EXT_SHADER_LONG_VECTOR_EXTENSION_NAME,
+#endif
+#ifdef VK_EXT_zero_initialize_device_memory
+        VK_EXT_ZERO_INITIALIZE_DEVICE_MEMORY_EXTENSION_NAME,
+#endif
 #ifdef VK_KHR_shader_expect_assume
         VK_KHR_SHADER_EXPECT_ASSUME_EXTENSION_NAME,
 #endif
@@ -2755,7 +2756,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
             VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
         };
 
-        const auto IsInstanceExtSupported = [availableInstanceExts = GetAvailableInstanceExts()](const char* extName) {
+        const auto IsInstanceExtSupported = [availableInstanceExts = GetAvailableInstanceExts(layers)](const char* extName) {
             if (extName == nullptr) return false;
             return std::find(availableInstanceExts.begin(), availableInstanceExts.end(), extName) != availableInstanceExts.end();
         };
