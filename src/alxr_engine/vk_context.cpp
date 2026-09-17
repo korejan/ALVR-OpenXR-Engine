@@ -131,6 +131,13 @@ bool VkContext::GetRequiredDeviceFeatures(ALXR::Vk::DeviceFeatures& requiredFeat
     dstFeatureV12.vulkanMemoryModelDeviceScope = srcFeatureV12.vulkanMemoryModelDeviceScope;
     dstFeatureV12.uniformBufferStandardLayout = srcFeatureV12.uniformBufferStandardLayout;
     dstFeatureV12.hostQueryReset = srcFeatureV12.hostQueryReset;
+    dstFeatureV12.vulkanMemoryModelAvailabilityVisibilityChains = srcFeatureV12.vulkanMemoryModelAvailabilityVisibilityChains;
+    dstFeatureV12.runtimeDescriptorArray = srcFeatureV12.runtimeDescriptorArray;
+    dstFeatureV12.shaderSubgroupExtendedTypes = srcFeatureV12.shaderSubgroupExtendedTypes;
+    dstFeatureV12.shaderUniformBufferArrayNonUniformIndexing = srcFeatureV12.shaderUniformBufferArrayNonUniformIndexing;
+    dstFeatureV12.shaderSampledImageArrayNonUniformIndexing = srcFeatureV12.shaderSampledImageArrayNonUniformIndexing;
+    dstFeatureV12.shaderStorageBufferArrayNonUniformIndexing = srcFeatureV12.shaderStorageBufferArrayNonUniformIndexing;
+    dstFeatureV12.shaderStorageImageArrayNonUniformIndexing = srcFeatureV12.shaderStorageImageArrayNonUniformIndexing;
 #endif
 
 #ifdef VK_VERSION_1_3
@@ -285,6 +292,53 @@ bool VkContext::GetRequiredDeviceFeatures(ALXR::Vk::DeviceFeatures& requiredFeat
         VkChainUnlink(requiredFeatures.features2, requiredFeatures.expectAssume);
     }
 #endif
+
+#ifdef VK_KHR_workgroup_memory_explicit_layout
+    if (IsDeviceExtEnabled(VK_KHR_WORKGROUP_MEMORY_EXPLICIT_LAYOUT_EXTENSION_NAME)) {
+        auto& dstExplicitMemLayout = requiredFeatures.explicitMemLayout;
+        const auto& srcExplicitMemLayout = supportedFeatures.explicitMemLayout;
+        dstExplicitMemLayout.workgroupMemoryExplicitLayout = srcExplicitMemLayout.workgroupMemoryExplicitLayout;
+        dstExplicitMemLayout.workgroupMemoryExplicitLayoutScalarBlockLayout = srcExplicitMemLayout.workgroupMemoryExplicitLayoutScalarBlockLayout;
+        dstExplicitMemLayout.workgroupMemoryExplicitLayout8BitAccess = srcExplicitMemLayout.workgroupMemoryExplicitLayout8BitAccess;
+        dstExplicitMemLayout.workgroupMemoryExplicitLayout16BitAccess = srcExplicitMemLayout.workgroupMemoryExplicitLayout16BitAccess;
+    }
+    else {
+        VkChainUnlink(requiredFeatures.features2, requiredFeatures.explicitMemLayout);
+    }
+#endif
+
+#ifdef VK_EXT_shader_replicated_composites
+    if (IsDeviceExtEnabled(VK_EXT_SHADER_REPLICATED_COMPOSITES_EXTENSION_NAME)) {
+        auto& dstReplicatedComposites = requiredFeatures.replicatedComposites;
+        const auto& srcReplicatedComposites = supportedFeatures.replicatedComposites;
+        dstReplicatedComposites.shaderReplicatedComposites = srcReplicatedComposites.shaderReplicatedComposites;
+    }
+    else {
+        VkChainUnlink(requiredFeatures.features2, requiredFeatures.replicatedComposites);
+    }
+#endif
+
+#ifdef VK_EXT_shader_long_vector
+    if (IsDeviceExtEnabled(VK_EXT_SHADER_LONG_VECTOR_EXTENSION_NAME)) {
+        auto& dstLongVector = requiredFeatures.longVector;
+        const auto& srcLongVector = supportedFeatures.longVector;
+        dstLongVector.longVector = srcLongVector.longVector;
+    }
+    else {
+        VkChainUnlink(requiredFeatures.features2, requiredFeatures.longVector);
+    }
+#endif
+
+#ifdef VK_EXT_zero_initialize_device_memory
+    if (IsDeviceExtEnabled(VK_EXT_ZERO_INITIALIZE_DEVICE_MEMORY_EXTENSION_NAME)) {
+        auto& dstZeroInitDeviceMemory = requiredFeatures.zeroInitDeviceMemory;
+        const auto& srcZeroInitDeviceMemory = supportedFeatures.zeroInitDeviceMemory;
+        dstZeroInitDeviceMemory.zeroInitializeDeviceMemory = srcZeroInitDeviceMemory.zeroInitializeDeviceMemory;
+    }
+    else {
+        VkChainUnlink(requiredFeatures.features2, requiredFeatures.zeroInitDeviceMemory);
+    }
+#endif
     return true;
 }
 
@@ -349,6 +403,18 @@ void DeviceFeatures::InitNextPtrs(const DeviceFeatures* const src /*= nullptr*/)
 #endif
 #ifdef VK_KHR_shader_expect_assume
     DF_SET_NEXT_PTR(expectAssume);
+#endif
+#ifdef VK_KHR_workgroup_memory_explicit_layout
+    DF_SET_NEXT_PTR(explicitMemLayout);
+#endif
+#ifdef VK_EXT_shader_replicated_composites
+    DF_SET_NEXT_PTR(replicatedComposites);
+#endif
+#ifdef VK_EXT_shader_long_vector
+    DF_SET_NEXT_PTR(longVector);
+#endif
+#ifdef VK_EXT_zero_initialize_device_memory
+    DF_SET_NEXT_PTR(zeroInitDeviceMemory);
 #endif
 #ifdef VK_VERSION_1_3
     DF_SET_NEXT_PTR(featuresV13);
