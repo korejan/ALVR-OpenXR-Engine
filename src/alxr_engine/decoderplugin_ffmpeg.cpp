@@ -220,6 +220,9 @@ constexpr inline ALXR::YcbcrModel GetYcbcrModel(const AVFrame& frame, const AVCo
     switch (frame.colorspace) {
     case AVCOL_SPC_BT709:
         return ALXR::YcbcrModel::BT709;
+    case AVCOL_SPC_BT470BG:
+    case AVCOL_SPC_SMPTE170M:
+        return ALXR::YcbcrModel::BT601;
     case AVCOL_SPC_BT2020_NCL:
     case AVCOL_SPC_BT2020_CL:
         return ALXR::YcbcrModel::BT2020;
