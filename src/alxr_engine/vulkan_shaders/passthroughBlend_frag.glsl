@@ -9,7 +9,7 @@
 
 #include "common/baseVideoFrag.glsl"
 
-layout(constant_id = 23) const float AlphaValue = 0.6f;
+layout(constant_id = 17) const float AlphaValue = 0.6f;
 
 layout(location = 0) out vec4 FragColor;
 

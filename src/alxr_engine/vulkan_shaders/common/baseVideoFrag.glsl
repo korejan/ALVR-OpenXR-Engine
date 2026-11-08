@@ -18,7 +18,7 @@ precision highp float;
     #include "decodeFoveation.glsl"
 #endif
 
-layout(constant_id = 22) const bool EnableSRGBLinearize = true;
+layout(constant_id = 16) const bool EnableSRGBLinearize = true;
 
 layout(binding = 0) uniform sampler2D tex_sampler;
 layout(location = 0) in vec2 UV;

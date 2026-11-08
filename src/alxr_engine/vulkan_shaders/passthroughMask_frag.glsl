@@ -9,10 +9,10 @@
 
 #include "common/baseVideoFrag.glsl"
 
-layout(constant_id = 23) const float AlphaValue = 0.3f;
-layout(constant_id = 24) const float KeyColorR = 0.01f;
-layout(constant_id = 25) const float KeyColorG = 0.01f;
-layout(constant_id = 26) const float KeyColorB = 0.01f;
+layout(constant_id = 17) const float AlphaValue = 0.3f;
+layout(constant_id = 18) const float KeyColorR = 0.01f;
+layout(constant_id = 19) const float KeyColorG = 0.01f;
+layout(constant_id = 20) const float KeyColorB = 0.01f;
 
 const vec3 key_color = vec3(KeyColorR, KeyColorG, KeyColorB);
 

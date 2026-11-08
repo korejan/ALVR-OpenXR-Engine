@@ -3602,30 +3602,30 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
 
         using SDType = SpecializationData;
         static_assert(std::is_standard_layout<SDType>::value);
-        constexpr static const std::array<std::uint32_t, 27> MemberOffsets {
+        constexpr static const std::array<std::uint32_t, 21> MemberOffsets {
             VEC2_OFFSET_OF(SDType, fdParams.eyeSizeRatio),
             VEC2_OFFSET_OF(SDType, fdParams.edgeRatio),
-            VEC2_OFFSET_OF(SDType, fdParams.c1),
-            VEC2_OFFSET_OF(SDType, fdParams.c2),
             VEC2_OFFSET_OF(SDType, fdParams.loBound),
             VEC2_OFFSET_OF(SDType, fdParams.hiBound),
-            VEC2_OFFSET_OF(SDType, fdParams.aLeft),
-            VEC2_OFFSET_OF(SDType, fdParams.bLeft),
-            VEC2_OFFSET_OF(SDType, fdParams.aRight),
-            VEC2_OFFSET_OF(SDType, fdParams.bRight),
-            VEC2_OFFSET_OF(SDType, fdParams.cRight),
+            VEC2_OFFSET_OF(SDType, fdParams.encLoBound),
+            VEC2_OFFSET_OF(SDType, fdParams.encHiBound),
+            VEC2_OFFSET_OF(SDType, fdParams.centerScale),
+            VEC2_OFFSET_OF(SDType, fdParams.encHalfTexel),
             offsetof(SDType, enableSRGBLinearize),
             offsetof(SDType, alphaValue),
             VEC3_OFFSET_OF(SDType, keyColour),
         };
 #undef VEC2_OFFSET_OF
 #undef VEC3_OFFSET_OF
+        // decodeFoveation.glsl uses constant IDs [0, FoveationConstantCount); the rest follow it.
+        constexpr static const std::uint32_t FoveationConstantCount = 16;
+        static_assert(sizeof(ALXR::FoveatedDecodeParams) == FoveationConstantCount * sizeof(float));
 
         std::uint32_t memberOffsetPos = 0;
         SpecializationMap specializationEMap{};
         specializationEMap.reserve(MemberOffsets.size());
         if (enableFDParams) {
-            for (; memberOffsetPos < 22u; ++memberOffsetPos) {
+            for (; memberOffsetPos < FoveationConstantCount; ++memberOffsetPos) {
                 assert(memberOffsetPos < MemberOffsets.size());
                 specializationEMap.push_back({
                     .constantID = memberOffsetPos,
@@ -3634,7 +3634,7 @@ struct VulkanGraphicsPlugin : public IGraphicsPlugin {
                     });
             }
         } else {
-            memberOffsetPos = 22u;
+            memberOffsetPos = FoveationConstantCount;
         }
 
         const std::uint32_t constID = memberOffsetPos++;
